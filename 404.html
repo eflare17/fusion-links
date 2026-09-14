@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Fusion Tinting</title>
+<style>
+body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #111; color: #eee; font-family: Arial, Helvetica, sans-serif; text-align: center; padding: 20px; box-sizing: border-box; }
+.box { max-width: 420px; }
+h1 { font-size: 20px; letter-spacing: 2px; margin: 0 0 12px; text-transform: uppercase; }
+p { font-size: 14px; color: #bbb; line-height: 1.5; }
+a { color: #fff; }
+</style>
+</head>
+<body>
+<div class="box">
+<h1>Fusion Tinting</h1>
+<p id="msg">One moment — opening your link…</p>
+</div>
+<script>
+(function () {
+// Short links: go.fusiontint.com.au/x7k2p9 -> ask the booking script where that code points, then go there.
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzNmWkV64bCAjRqOc0_-AoqTD_tmRQ53PJOJIPTu5dtvETNolHN0nhCPTqX1m_p4iGw/exec';
+var ALLOWED = ['https://fusiontint.com.au/', 'https://www.fusiontint.com.au/', 'https://buy.stripe.com/', 'https://checkout.stripe.com/', 'https://www.paypal.com/', 'https://paypal.me/'];
+var msg = document.getElementById('msg');
+var code = location.pathname.replace(/^\/+|\/+$/g, '');
+
+function notFound() {
+msg.innerHTML = 'Sorry, that link doesn\'t seem to work. Please check it, or call us on <a href="tel:0488846848">0488 846 848</a> and we\'ll sort it out.';
+}
+function allowed(u) {
+u = String(u || '');
+for (var i = 0; i < ALLOWED.length; i++) if (u.indexOf(ALLOWED[i]) === 0) return true;
+return false;
+}
+
+if (!code || /[^A-Za-z0-9]/.test(code) || code.length > 12) { notFound(); return; }
+
+fetch(SCRIPT_URL + '?action=resolve&code=' + encodeURIComponent(code))
+.then(function (r) { return r.json(); })
+.then(function (d) {
+if (d && d.success && d.url && allowed(d.url)) location.replace(d.url);
+else notFound();
+})
+.catch(notFound);
+})();
+</script>
+</body>
+</html>
