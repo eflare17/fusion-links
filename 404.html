@@ -26,24 +26,46 @@ var ALLOWED = ['https://fusiontint.com.au/', 'https://www.fusiontint.com.au/', '
 var msg = document.getElementById('msg');
 var code = location.pathname.replace(/^\/+|\/+$/g, '');
 
+var TIMEOUT_MS = 12000;
+var attempts = 0;
+
 function notFound() {
 msg.innerHTML = 'Sorry, that link doesn\'t seem to work. Please check it, or call us on <a href="tel:0488846848">0488 846 848</a> and we\'ll sort it out.';
+}
+function slow() {
+msg.innerHTML = 'Taking longer than usual… <a href="#" id="retry">Tap to try again</a>, or call us on <a href="tel:0488846848">0488 846 848</a>.';
+document.getElementById('retry').onclick = function (e) { e.preventDefault(); msg.textContent = 'One moment — opening your link…'; go(); };
 }
 function allowed(u) {
 u = String(u || '');
 for (var i = 0; i < ALLOWED.length; i++) if (u.indexOf(ALLOWED[i]) === 0) return true;
 return false;
 }
-
-if (!code || /[^A-Za-z0-9]/.test(code) || code.length > 12) { notFound(); return; }
-
-fetch(SCRIPT_URL + '?action=resolve&code=' + encodeURIComponent(code))
+function fetchWithTimeout(url, ms) {
+return new Promise(function (resolve, reject) {
+var timer = setTimeout(function () { reject(new Error('timeout')); }, ms);
+fetch(url, { cache: 'no-store', credentials: 'omit', redirect: 'follow' })
+.then(function (r) { clearTimeout(timer); resolve(r); }, function (e) { clearTimeout(timer); reject(e); });
+});
+}
+function go() {
+attempts++;
+fetchWithTimeout(SCRIPT_URL + '?action=resolve&code=' + encodeURIComponent(code) + '&t=' + Date.now(), TIMEOUT_MS)
 .then(function (r) { return r.json(); })
 .then(function (d) {
 if (d && d.success && d.url && allowed(d.url)) location.replace(d.url);
-else notFound();
+else if (d && d.success === false) notFound();   // script answered: unknown code
+else throw new Error('bad response');
 })
-.catch(notFound);
+.catch(function () {
+// network hiccup, cold start, or a redirect that went sideways: retry once
+// on our own, then hand the customer a button rather than a frozen page.
+if (attempts < 2) setTimeout(go, 1500); else slow();
+});
+}
+
+if (!code || /[^A-Za-z0-9]/.test(code) || code.length > 12) { notFound(); return; }
+go();
 })();
 </script>
 </body>
