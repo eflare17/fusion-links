@@ -22,12 +22,16 @@ a { color: #fff; }
 (function () {
 // Short links: go.fusiontint.com.au/x7k2p9 -> ask the booking script where that code points, then go there.
 var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzNmWkV64bCAjRqOc0_-AoqTD_tmRQ53PJOJIPTu5dtvETNolHN0nhCPTqX1m_p4iGw/exec';
+// Customer quote links (q + 11 characters) live in the Fusion Quoter script instead
+var QUOTE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyoM8ax6IpZbb-_Dqfx048hyscPBlYXR9FbPOxHa-UvjmH15iOLn0_-Q9t_FbnutKILDA/exec';
 var ALLOWED = ['https://fusiontint.com.au/', 'https://www.fusiontint.com.au/', 'https://buy.stripe.com/', 'https://checkout.stripe.com/', 'https://www.paypal.com/', 'https://paypal.me/'];
 var msg = document.getElementById('msg');
 var code = location.pathname.replace(/^\/+|\/+$/g, '');
 
 var TIMEOUT_MS = 12000;
 var attempts = 0;
+// Scripts to ask, in order - a quote-shaped code falls back to the booking script if it isn't a quote
+var scripts = /^q[a-z0-9]{11}$/.test(code) ? [QUOTE_SCRIPT_URL, SCRIPT_URL] : [SCRIPT_URL];
 
 function notFound() {
 msg.innerHTML = 'Sorry, that link doesn\'t seem to work. Please check it, or call us on <a href="tel:0488846848">0488 846 848</a> and we\'ll sort it out.';
@@ -50,10 +54,11 @@ fetch(url, { cache: 'no-store', credentials: 'omit', redirect: 'follow' })
 }
 function go() {
 attempts++;
-fetchWithTimeout(SCRIPT_URL + '?action=resolve&code=' + encodeURIComponent(code) + '&t=' + Date.now(), TIMEOUT_MS)
+fetchWithTimeout(scripts[0] + '?action=resolve&code=' + encodeURIComponent(code) + '&t=' + Date.now(), TIMEOUT_MS)
 .then(function (r) { return r.json(); })
 .then(function (d) {
 if (d && d.success && d.url && allowed(d.url)) location.replace(d.url);
+else if (d && d.success === false && scripts.length > 1) { scripts.shift(); attempts = 0; go(); } // not a quote - try bookings
 else if (d && d.success === false) notFound();   // script answered: unknown code
 else throw new Error('bad response');
 })
