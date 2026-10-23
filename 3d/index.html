@@ -232,8 +232,10 @@ const MAT={
 };
 const GLASS=['gws','gfs','grs','grw'];
 // VLT % -> how the glass reads on screen (opacity + film colour + how much it reflects)
-function shadeLook(v){const t=1-v/80;return{op:.1+Math.pow(t,.8)*.86,c:new T.Color().lerpColors(col('#56605f'),col('#040506'),Math.pow(t,.6)),env:.55-t*.15};}
-function swatchCss(v){const t=1-v/80;const l=Math.round(205-t*190);return 'rgb('+l+','+Math.round(l*1.03)+','+Math.round(l*1.08)+')';}
+// how dark each shade reads on screen (hand-tuned so mid shades aren't too dark)
+const OPAC={80:.10,70:.24,50:.34,35:.44,20:.62,15:.72,5:.92};
+function shadeLook(v){const op=OPAC[v]!=null?OPAC[v]:.5,k=(op-.1)/.82;return{op,c:new T.Color().lerpColors(col('#56605f'),col('#040506'),Math.pow(k,.8)),env:.55-k*.15};}
+function swatchCss(v){const t=((OPAC[v]!=null?OPAC[v]:.5)-.1)/.82;const l=Math.round(205-t*190);return 'rgb('+l+','+Math.round(l*1.03)+','+Math.round(l*1.08)+')';}
 function setGlass(z,v){const s=shadeLook(v),m=MAT[z];m.opacity=s.op;m.color.copy(s.c);m.envMapIntensity=s.env;}
 
 /* ---------- load ---------- */
