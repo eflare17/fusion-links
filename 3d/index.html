@@ -76,6 +76,14 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,40px);let
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
 .seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.sw-any{background:conic-gradient(#e33,#e9b31d,#4c4,#2bd,#33e,#c3c,#e33)!important}
+.anycol{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.anycol input[type=range]{-webkit-appearance:none;appearance:none;width:200px;max-width:100%;height:14px;border-radius:999px;outline:none;cursor:pointer}
+.anycol .hue{background:linear-gradient(90deg,#f33,#f93,#ee3,#3c3,#3cc,#36f,#93f,#f3c,#f33)}
+.anycol .light{background:linear-gradient(90deg,#111,var(--anymid,#3a6ea5),#eee)}
+.anycol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.anycol input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+.anycol input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .note{font-size:12.5px;color:var(--muted);max-width:75ch;margin:6px 0 0}
 .disclaim{margin:0 0 14px;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:13.5px;line-height:1.4;max-width:none}
 .disclaim b{font-weight:600;color:var(--accent)}
@@ -102,7 +110,7 @@ html.embedded #stage{aspect-ratio:16/9;min-height:300px;max-height:640px;width:1
   </header>
 
   <div id="stage">
-    <img class="poster" src="poster.jpg?v=d1" alt="Ford Ranger dual cab with tinted windows" width="1600" height="807">
+    <img class="poster" src="poster.jpg?v=d2" alt="Ford Ranger dual cab with tinted windows" width="1600" height="807">
     <button class="go3d" id="go3d" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Zm0 2.3 5.7 3.2L12 11.7 6.3 8.5 12 5.3ZM6 10.2l5 2.8v5.6l-5-2.8v-5.6Zm7 8.4V13l5-2.8v5.6l-5 2.8Z" fill="currentColor"/></svg>Try tint shades in 3D</button>
     <div class="loading" id="loading" hidden>Loading… 0%</div>
     <div class="legal live-only" id="legal" role="status"><span class="dot"></span><span id="legal-text">Road legal in VIC</span></div>
@@ -137,7 +145,14 @@ html.embedded #stage{aspect-ratio:16/9;min-height:300px;max-height:640px;width:1
           <button id="paint-meteor" data-v="meteor" aria-pressed="true"><i class="sw" style="background:#4a4e53"></i>Meteor Grey</button>
           <button id="paint-shadow" data-v="shadow" aria-pressed="false"><i class="sw" style="background:#141518"></i>Shadow Black</button>
           <button id="paint-blue" data-v="blue" aria-pressed="false"><i class="sw" style="background:#21497f"></i>Blue Lightning</button>
+          <button id="paint-custom" data-v="custom" aria-pressed="false"><i class="sw sw-any" id="sw-any"></i>Any colour</button>
         </div></div>
+      <div class="group anycol" id="anycol" hidden>
+        <label class="label" for="any-hue">Colour</label>
+        <input type="range" id="any-hue" min="0" max="360" value="205" class="hue">
+        <label class="label" for="any-light">Light / dark</label>
+        <input type="range" id="any-light" min="6" max="85" value="38" class="light">
+      </div>
       <div class="group"><span class="label">View</span>
         <div class="seg" data-key="view">
           <button id="view-front" data-v="front" aria-pressed="true">Front ¾</button>
@@ -188,6 +203,7 @@ controls.maxPolarAngle=PI/2-0.04;
 controls.autoRotateSpeed=1.2;
 controls.enablePan=false;
 
+const ENVS={};
 (function(){ // fallback studio environment, replaced by the photographed HDRI once loaded
   const env=new T.Scene();
   const dg=new T.SphereGeometry(20,48,24),dc=[],pos=dg.attributes.position;
@@ -199,17 +215,20 @@ controls.enablePan=false;
   box(12,5,0,9,0,0,PI/2,5.0);box(9,1.6,0,3.2,9,0,0,3.2);box(9,1.6,0,3.2,-9,PI,0,2.4);box(3,5,10,3,0,-PI/2,0,1.8);box(3,5,-10,3,0,PI/2,0,2.4);
   const pm=new T.PMREMGenerator(renderer);scene.environment=pm.fromScene(env,0.03).texture;
   new T.RGBELoader().setDataType(T.UnsignedByteType).load('env.hdr',tex=>{
-    // studio look: dimmed real environment + long strip softboxes that draw highlight lines along the body
-    tex.encoding=T.RGBEEncoding;const env=new T.Scene();
-    env.add(new T.Mesh(new T.SphereGeometry(30,64,32),new T.MeshBasicMaterial({map:tex,side:T.BackSide,color:new T.Color(.32,.32,.32)})));
-    const strip=(w,h,x,y,z,rx,ry,k)=>{const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({color:new T.Color(k,k,k),side:T.DoubleSide}));m.position.set(x,y,z);m.rotation.set(rx,ry,0);env.add(m);};
-    strip(11,2.2,0,7,0,PI/2,0,7);            // overhead softbox
-    strip(12,.7,0,2.6,7.5,0,0,6);            // long side strips
-    strip(12,.7,0,2.6,-7.5,0,0,6);
-    strip(12,.5,0,.9,8,0,0,2.2);             // low kickers for the lower body
-    strip(12,.5,0,.9,-8,0,0,2.2);
-    strip(3,4,9,3,0,0,-PI/2,2.5);strip(3,4,-9,3,0,0,PI/2,2.5);
-    scene.environment=pm.fromScene(env,0.01).texture;
+    // studio look: dimmed real environment + strip softboxes; built at three strengths for the Lighting toggle
+    tex.encoding=T.RGBEEncoding;
+    const build=(k,base)=>{const env=new T.Scene();
+      env.add(new T.Mesh(new T.SphereGeometry(30,64,32),new T.MeshBasicMaterial({map:tex,side:T.BackSide,color:new T.Color(base,base,base)})));
+      const strip=(w,h,x,y,z,rx,ry,i)=>{const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({color:new T.Color(i*k,i*k,i*k),side:T.DoubleSide}));m.position.set(x,y,z);m.rotation.set(rx,ry,0);env.add(m);};
+      strip(11,2.2,0,7,0,PI/2,0,7);            // overhead softbox
+      strip(12,.7,0,2.6,7.5,0,0,6);            // long side strips
+      strip(12,.7,0,2.6,-7.5,0,0,6);
+      strip(12,.5,0,.9,8,0,0,2.2);             // low kickers for the lower body
+      strip(12,.5,0,.9,-8,0,0,2.2);
+      strip(3,4,9,3,0,0,-PI/2,2.5);strip(3,4,-9,3,0,0,PI/2,2.5);
+      return pm.fromScene(env,0.01).texture;};
+    ENVS.soft=build(.3,.42);
+    scene.environment=ENVS.soft;apply();
   });
 })();
 scene.add(new T.HemisphereLight(0xffffff,0x6b6e72,0.12));
@@ -229,7 +248,7 @@ ground.rotation.x=-PI/2;ground.receiveShadow=true;scene.add(ground);
   m.rotation.x=-PI/2;m.position.set(0,0.004,0);m.renderOrder=-1;scene.add(m);})();
 
 /* ---------- materials ---------- */
-const PAINT={arctic:{c:'#d9dad6',m:0},aluminium:{c:'#a3a7ab',m:.3},meteor:{c:'#4a4e53',m:.25},shadow:{c:'#141518',m:.1},blue:{c:'#21497f',m:.25}};
+const PAINT={custom:{c:'#2f5f8f',m:.25},arctic:{c:'#d9dad6',m:0},aluminium:{c:'#a3a7ab',m:.3},meteor:{c:'#4a4e53',m:.25},shadow:{c:'#141518',m:.1},blue:{c:'#21497f',m:.25}};
 const glassBase=()=>new T.MeshPhysicalMaterial({color:col('#1a1f24'),roughness:.03,metalness:.1,clearcoat:1,clearcoatRoughness:.02,envMapIntensity:.9,transparent:true,opacity:.42,depthWrite:false,side:T.DoubleSide});
 const MAT={
   clay:new T.MeshPhysicalMaterial({color:col(PAINT.meteor.c),roughness:.5,metalness:.25,clearcoat:.55,clearcoatRoughness:.16,envMapIntensity:.8,side:T.DoubleSide}),
@@ -295,9 +314,18 @@ let tween=null;
 function goView(v){const to=new T.Vector3(...VIEWS[v]);
   if(matchMedia('(prefers-reduced-motion: reduce)').matches){camera.position.copy(to);controls.target.copy(TARGET);return;}
   tween={from:camera.position.clone(),to,fromT:controls.target.clone(),t0:performance.now(),d:700};}
-const state={paint:'meteor',view:'front',spin:'off'};
-function apply(){const pt=PAINT[state.paint];MAT.clay.color.copy(col(pt.c));
-  MAT.clay.metalness=pt.m>0?pt.m+.2:.05;MAT.clay.roughness=pt.m>0?.36:.42;MAT.clay.clearcoat=1;MAT.clay.clearcoatRoughness=.035;MAT.clay.envMapIntensity=1;
+const LIGHT={soft:{cc:.7,ccr:.14,env:.85,exp:.82},studio:{cc:.9,ccr:.07,env:.9,exp:.82},showroom:{cc:1,ccr:.035,env:1,exp:.85}};
+const state={paint:'meteor',view:'front',spin:'off',light:'soft'};
+function anyHex(){const h=+document.getElementById('any-hue').value,l=+document.getElementById('any-light').value/100;
+  const sat=l<.12||l>.8?.25:.62;return '#'+new T.Color().setHSL(h/360,sat,l).getHexString();}
+function apply(){if(state.paint==='custom'){PAINT.custom.c=anyHex();}
+  document.getElementById('anycol').hidden=state.paint!=='custom';
+  const mid='#'+new T.Color().setHSL(+document.getElementById('any-hue').value/360,.62,.42).getHexString();
+  document.getElementById('anycol').style.setProperty('--anymid',mid);document.getElementById('sw-any').style.boxShadow=state.paint==='custom'?'0 0 0 2px '+PAINT.custom.c:'';
+  const pt=PAINT[state.paint];MAT.clay.color.copy(col(pt.c));
+  const L=LIGHT[state.light]||LIGHT.studio;
+  MAT.clay.metalness=pt.m>0?pt.m+.2:.05;MAT.clay.roughness=pt.m>0?.36:.42;MAT.clay.clearcoat=L.cc;MAT.clay.clearcoatRoughness=L.ccr;MAT.clay.envMapIntensity=L.env;
+  if(ENVS[state.light])scene.environment=ENVS[state.light];renderer.toneMappingExposure=L.exp;
   controls.autoRotate=state.spin==='on';}
 document.querySelectorAll('.seg[data-key]').forEach(seg=>{
   seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=seg.dataset.key;state[k]=b.dataset.v;
@@ -305,6 +333,7 @@ document.querySelectorAll('.seg[data-key]').forEach(seg=>{
     if(k==='view')goView(b.dataset.v);apply();});
 });
 controls.addEventListener('start',()=>{tween=null;});
+['any-hue','any-light'].forEach(id=>document.getElementById(id).addEventListener('input',apply));
 apply();
 
 function resize(){const r=stage.getBoundingClientRect();const w=Math.max(r.width,1),h=Math.max(r.height,1);
