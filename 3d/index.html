@@ -10,8 +10,8 @@
 /* Layout: Fusion Tinting brand — black section, orange accent, Russo One headings, Jost body; light studio stage as the hero card */
 :root{
   --bg:#000000;
-  --stage-hi:#d4d6d8;
-  --stage-lo:#9fa3a7;
+  --stage-hi:#3a3d41;
+  --stage-lo:#0e0f10;
   --fg:#ffffff;
   --muted:#aaaaaa;
   --line:#2a2a2a;
@@ -39,8 +39,8 @@ h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,40px);let
   background:radial-gradient(120% 90% at 50% 35%,var(--stage-hi),var(--stage-lo))}
 #stage canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
 #stage canvas:active{cursor:grabbing}
-.hint{position:absolute;left:14px;bottom:12px;font-size:12px;color:#555b61;pointer-events:none}
-.loading{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;color:#41464c;pointer-events:none}
+.hint{position:absolute;left:14px;bottom:12px;font-size:12px;color:#8a9096;pointer-events:none}
+.loading{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;color:#b5bbc1;pointer-events:none}
 .poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:100%}
 .go3d{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:9px;
   appearance:none;border:0;border-radius:999px;padding:13px 22px;background:var(--accent);color:var(--on-accent);
@@ -198,7 +198,19 @@ controls.enablePan=false;
     m.position.set(x,y,z);m.rotation.set(rx||0,ry||0,0);env.add(m);};
   box(12,5,0,9,0,0,PI/2,5.0);box(9,1.6,0,3.2,9,0,0,3.2);box(9,1.6,0,3.2,-9,PI,0,2.4);box(3,5,10,3,0,-PI/2,0,1.8);box(3,5,-10,3,0,PI/2,0,2.4);
   const pm=new T.PMREMGenerator(renderer);scene.environment=pm.fromScene(env,0.03).texture;
-  new T.RGBELoader().setDataType(T.UnsignedByteType).load('env.hdr',tex=>{scene.environment=pm.fromEquirectangular(tex).texture;tex.dispose();});
+  new T.RGBELoader().setDataType(T.UnsignedByteType).load('env.hdr',tex=>{
+    // studio look: dimmed real environment + long strip softboxes that draw highlight lines along the body
+    tex.encoding=T.RGBEEncoding;const env=new T.Scene();
+    env.add(new T.Mesh(new T.SphereGeometry(30,64,32),new T.MeshBasicMaterial({map:tex,side:T.BackSide,color:new T.Color(.32,.32,.32)})));
+    const strip=(w,h,x,y,z,rx,ry,k)=>{const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({color:new T.Color(k,k,k),side:T.DoubleSide}));m.position.set(x,y,z);m.rotation.set(rx,ry,0);env.add(m);};
+    strip(11,2.2,0,7,0,PI/2,0,7);            // overhead softbox
+    strip(12,.7,0,2.6,7.5,0,0,6);            // long side strips
+    strip(12,.7,0,2.6,-7.5,0,0,6);
+    strip(12,.5,0,.9,8,0,0,2.2);             // low kickers for the lower body
+    strip(12,.5,0,.9,-8,0,0,2.2);
+    strip(3,4,9,3,0,0,-PI/2,2.5);strip(3,4,-9,3,0,0,PI/2,2.5);
+    scene.environment=pm.fromScene(env,0.01).texture;
+  });
 })();
 scene.add(new T.HemisphereLight(0xffffff,0x6b6e72,0.12));
 const key=new T.DirectionalLight(0xfff3e6,0.55);
@@ -284,7 +296,8 @@ function goView(v){const to=new T.Vector3(...VIEWS[v]);
   if(matchMedia('(prefers-reduced-motion: reduce)').matches){camera.position.copy(to);controls.target.copy(TARGET);return;}
   tween={from:camera.position.clone(),to,fromT:controls.target.clone(),t0:performance.now(),d:700};}
 const state={paint:'meteor',view:'front',spin:'off'};
-function apply(){const pt=PAINT[state.paint];MAT.clay.color.copy(col(pt.c));MAT.clay.metalness=pt.m;MAT.clay.roughness=pt.m>0?.5:.55;
+function apply(){const pt=PAINT[state.paint];MAT.clay.color.copy(col(pt.c));
+  MAT.clay.metalness=pt.m>0?pt.m+.2:.05;MAT.clay.roughness=pt.m>0?.36:.42;MAT.clay.clearcoat=1;MAT.clay.clearcoatRoughness=.035;MAT.clay.envMapIntensity=1;
   controls.autoRotate=state.spin==='on';}
 document.querySelectorAll('.seg[data-key]').forEach(seg=>{
   seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=seg.dataset.key;state[k]=b.dataset.v;
