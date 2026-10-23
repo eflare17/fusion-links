@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fusion Tint 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Jost:wght@300;400;500;600;700&display=swap">
+<style>
+/* Layout: Fusion Tinting brand — black section, orange accent, Russo One headings, Jost body; light studio stage as the hero card */
+:root{
+  --bg:#000000;
+  --stage-hi:#d4d6d8;
+  --stage-lo:#9fa3a7;
+  --fg:#ffffff;
+  --muted:#aaaaaa;
+  --line:#2a2a2a;
+  --panel:#151515;
+  --chip:#222222;
+  --accent:#f07a22;
+  --on-accent:#ffffff;
+  --ok:#5cc87e;
+  --warn:#ff6a3d;
+  --display:"Russo One","Jost",Futura,sans-serif;
+  --body:"Jost",Futura,"Segoe UI",sans-serif;
+  --mono:"Jost",Futura,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45}
+.app{min-height:100%;display:grid;grid-template-rows:auto minmax(340px,62vh) auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:14px;gap:12px;box-sizing:border-box;align-content:start}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 20px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,4vw,40px);letter-spacing:1px;color:var(--accent);line-height:1;margin:0;text-transform:uppercase;text-wrap:balance}
+.sub{font-size:14px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+#stage{position:relative;border-radius:14px;overflow:hidden;min-height:0;
+  background:radial-gradient(120% 90% at 50% 35%,var(--stage-hi),var(--stage-lo))}
+#stage canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+#stage canvas:active{cursor:grabbing}
+.hint{position:absolute;left:14px;bottom:12px;font-size:12px;color:#555b61;pointer-events:none}
+.loading{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;color:#41464c;pointer-events:none}
+.poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;max-width:100%}
+.go3d{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:9px;
+  appearance:none;border:0;border-radius:999px;padding:13px 22px;background:var(--accent);color:var(--on-accent);
+  font:500 17px/1 var(--body);letter-spacing:.02em;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3);white-space:nowrap}
+.go3d:hover{filter:brightness(1.12)}
+.go3d:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.app:not(.live) .live-only{display:none}
+.app.live .poster,.app.live .go3d{display:none}
+.app:not(.live) #stage{cursor:pointer}
+.legal{color:#111;position:absolute;right:12px;top:12px;display:flex;align-items:center;gap:8px;max-width:calc(100% - 24px);
+  background:#ffffff;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.legal .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ok)}
+.legal.bad .dot{background:var(--warn)}
+.panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px 22px}
+.zone{display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.zhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.label{font-family:var(--display);font-weight:400;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.vlt{font-size:13px;font-weight:500;color:var(--fg);font-variant-numeric:tabular-nums}
+.vlt.bad{color:var(--warn)}
+.shades{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.shades button{appearance:none;border:2px solid transparent;border-radius:8px;padding:0;cursor:pointer;background:var(--chip);
+  display:flex;flex-direction:column;align-items:stretch;overflow:hidden;color:var(--fg)}
+.shades button i{display:block;height:22px}
+.shades button span{font:500 12px/1 var(--body);padding:5px 0;text-align:center;font-variant-numeric:tabular-nums}
+.shades button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.shades button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rail{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:flex-end;margin-top:4px}
+.group{display:flex;flex-direction:column;gap:5px;min-width:0}
+.seg{display:inline-flex;background:var(--chip);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{appearance:none;border:0;background:transparent;color:var(--fg);font:500 14px/1 var(--body);
+  padding:9px 14px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.seg button:hover{background:#333}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.note{font-size:12.5px;color:var(--muted);max-width:75ch;margin:6px 0 0}
+.disclaim{margin:0 0 14px;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:13.5px;line-height:1.4;max-width:none}
+.disclaim b{font-weight:600;color:var(--accent)}
+@media (max-width:560px){
+  .app{grid-template-rows:auto minmax(280px,48vh) auto}
+  .seg button{padding:8px 10px;font-size:13px}
+  .legal{font-size:12px;padding:6px 10px}
+}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+html.embedded,html.embedded body{height:auto}
+html.embedded .app{min-height:0;grid-template-rows:auto auto auto}
+html.embedded #stage{aspect-ratio:16/9;min-height:300px;max-height:640px;width:100%}
+@media (max-width:560px){html.embedded #stage{aspect-ratio:4/3}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>See your tint in 3D</h1>
+    <span class="sub">Fusion Tinting · Next-Gen Ranger dual cab</span>
+  </header>
+
+  <div id="stage">
+    <img class="poster" src="poster.jpg" alt="Ford Ranger dual cab with tinted windows" width="1600" height="807">
+    <button class="go3d" id="go3d" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Zm0 2.3 5.7 3.2L12 11.7 6.3 8.5 12 5.3ZM6 10.2l5 2.8v5.6l-5-2.8v-5.6Zm7 8.4V13l5-2.8v5.6l-5 2.8Z" fill="currentColor"/></svg>Try tint shades in 3D</button>
+    <div class="loading" id="loading" hidden>Loading… 0%</div>
+    <div class="legal live-only" id="legal" role="status"><span class="dot"></span><span id="legal-text">Road legal in VIC</span></div>
+    <div class="hint live-only">Drag to orbit · scroll or pinch to zoom</div>
+  </div>
+
+  <div>
+    <p class="disclaim"><b>For illustration only.</b> Actual tint will look different depending on your car, glass and lighting. Pop in and see real film samples on your car before you decide.</p>
+    <div class="live-only">
+    <div class="panel" id="panel">
+      <div class="zone" data-zone="gfs">
+        <div class="zhead"><span class="label">Front doors</span><span class="vlt" id="vlt-gfs"></span></div>
+        <div class="shades"></div>
+      </div>
+      <div class="zone" data-zone="rear">
+        <div class="zhead"><span class="label">Rear doors &amp; back window</span><span class="vlt" id="vlt-rear"></span></div>
+        <div class="shades"></div>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="group"><span class="label">Quick picks</span>
+        <div class="seg" id="presets">
+          <button id="pre-factory" data-p="factory" aria-pressed="false">No tint</button>
+          <button id="pre-legal" data-p="legal" aria-pressed="true">Darkest legal</button>
+          <button id="pre-privacy" data-p="privacy" aria-pressed="false">Privacy</button>
+          <button id="pre-limo" data-p="limo" aria-pressed="false">Limo</button>
+        </div></div>
+      <div class="group"><span class="label">Paint</span>
+        <div class="seg" data-key="paint">
+          <button id="paint-arctic" data-v="arctic" aria-pressed="false"><i class="sw" style="background:#d9dad6"></i>Arctic White</button>
+          <button id="paint-aluminium" data-v="aluminium" aria-pressed="false"><i class="sw" style="background:#a3a7ab"></i>Aluminium</button>
+          <button id="paint-meteor" data-v="meteor" aria-pressed="true"><i class="sw" style="background:#4a4e53"></i>Meteor Grey</button>
+          <button id="paint-shadow" data-v="shadow" aria-pressed="false"><i class="sw" style="background:#141518"></i>Shadow Black</button>
+          <button id="paint-blue" data-v="blue" aria-pressed="false"><i class="sw" style="background:#21497f"></i>Blue Lightning</button>
+        </div></div>
+      <div class="group"><span class="label">View</span>
+        <div class="seg" data-key="view">
+          <button id="view-front" data-v="front" aria-pressed="true">Front ¾</button>
+          <button id="view-side" data-v="side" aria-pressed="false">Side</button>
+          <button id="view-rear" data-v="rear" aria-pressed="false">Rear ¾</button>
+        </div></div>
+      <div class="group"><span class="label">Spin</span>
+        <div class="seg" data-key="spin">
+          <button id="spin-on" data-v="on" aria-pressed="false">On</button>
+          <button id="spin-off" data-v="off" aria-pressed="true">Off</button>
+        </div></div>
+    </div>
+    </div>
+    <p class="note">Percentages are VLT (how much light gets through), so lower means darker. In Victoria, front side windows must let through at least 35% and windows behind the driver at least 20%.</p>
+  </div>
+</div>
+
+<script>
+function boot(){
+const stage=document.getElementById('stage');
+const loadingEl=document.getElementById('loading');
+if(!window.THREE||!THREE.GLTFLoader){loadingEl.textContent='3D engine failed to load. Refresh to try again.';return;}
+const T=THREE, PI=Math.PI;
+const col=h=>new T.Color(h).convertSRGBToLinear();
+
+/* ---------- tint data ---------- */
+const SHADES=[80,70,50,35,20,15,5];           // 80 = untinted factory glass
+const LIMIT={gfs:35,rear:20};            // VIC minimum VLT
+const PRESETS={factory:{gfs:80,rear:80},legal:{gfs:35,rear:20},privacy:{gfs:35,rear:15},limo:{gfs:20,rear:5}};
+const tint={gfs:35,rear:20};
+
+/* ---------- renderer / scene ---------- */
+const renderer=new T.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=T.sRGBEncoding;
+renderer.toneMapping=T.ACESFilmicToneMapping;
+renderer.toneMappingExposure=0.85;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=T.PCFShadowMap;
+stage.prepend(renderer.domElement);
+
+const scene=new T.Scene();
+const camera=new T.PerspectiveCamera(30,1,0.1,100);
+const controls=new T.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.dampingFactor=0.08;
+controls.minDistance=3.5;controls.maxDistance=16;
+controls.maxPolarAngle=PI/2-0.04;
+controls.autoRotateSpeed=1.2;
+controls.enablePan=false;
+
+(function(){ // fallback studio environment, replaced by the photographed HDRI once loaded
+  const env=new T.Scene();
+  const dg=new T.SphereGeometry(20,48,24),dc=[],pos=dg.attributes.position;
+  for(let i=0;i<pos.count;i++){const h=pos.getY(i)/20;let v=h<-0.15?0.05:h<0.35?0.05+(h+0.15)/0.5*0.27:h<0.55?0.32:0.32+Math.min((h-0.55)/0.45,1)*0.23;dc.push(v,v,v);}
+  dg.setAttribute('color',new T.Float32BufferAttribute(dc,3));
+  env.add(new T.Mesh(dg,new T.MeshBasicMaterial({vertexColors:true,side:T.BackSide})));
+  const box=(w,h,x,y,z,ry,rx,k)=>{const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({color:new T.Color(k,k,k),side:T.DoubleSide}));
+    m.position.set(x,y,z);m.rotation.set(rx||0,ry||0,0);env.add(m);};
+  box(12,5,0,9,0,0,PI/2,5.0);box(9,1.6,0,3.2,9,0,0,3.2);box(9,1.6,0,3.2,-9,PI,0,2.4);box(3,5,10,3,0,-PI/2,0,1.8);box(3,5,-10,3,0,PI/2,0,2.4);
+  const pm=new T.PMREMGenerator(renderer);scene.environment=pm.fromScene(env,0.03).texture;
+  new T.RGBELoader().setDataType(T.UnsignedByteType).load('env.hdr',tex=>{scene.environment=pm.fromEquirectangular(tex).texture;tex.dispose();});
+})();
+scene.add(new T.HemisphereLight(0xffffff,0x6b6e72,0.12));
+const key=new T.DirectionalLight(0xfff3e6,0.55);
+key.position.set(1.2,10,0.9);key.castShadow=true;key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-4.5,right:4.5,top:4.5,bottom:-4.5,near:1,far:30});
+key.shadow.bias=-0.0004;key.shadow.normalBias=0.02;key.shadow.radius=7;scene.add(key);
+
+const ground=new T.Mesh(new T.PlaneGeometry(40,40),new T.ShadowMaterial({opacity:0.16}));
+ground.rotation.x=-PI/2;ground.receiveShadow=true;scene.add(ground);
+(function(){ // soft contact shadow shaped to the ute's footprint (stacked rounded rects = cheap blur)
+  const W=1024,H=512,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  const rr=(w,h,r)=>{const x=(W-w)/2,y=(H-h)/2;g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fill();};
+  for(let i=0;i<40;i++){const k=i/39;g.fillStyle='rgba(0,0,0,'+(0.018+0.01*k)+')';rr(980-k*230,440-k*190,200-k*120);}   // wide soft halo
+  for(let i=0;i<24;i++){const k=i/23;g.fillStyle='rgba(0,0,0,'+(0.03)+')';rr(760-k*80,250-k*60,70);}                    // darker core under the body
+  const m=new T.Mesh(new T.PlaneGeometry(7.0,3.4),new T.MeshBasicMaterial({map:new T.CanvasTexture(c),transparent:true,depthWrite:false,opacity:.9}));
+  m.rotation.x=-PI/2;m.position.set(0,0.004,0);m.renderOrder=-1;scene.add(m);})();
+
+/* ---------- materials ---------- */
+const PAINT={arctic:{c:'#d9dad6',m:0},aluminium:{c:'#a3a7ab',m:.3},meteor:{c:'#4a4e53',m:.25},shadow:{c:'#141518',m:.1},blue:{c:'#21497f',m:.25}};
+const glassBase=()=>new T.MeshPhysicalMaterial({color:col('#1a1f24'),roughness:.03,metalness:.1,clearcoat:1,clearcoatRoughness:.02,envMapIntensity:.9,transparent:true,opacity:.42,depthWrite:false,side:T.DoubleSide});
+const MAT={
+  clay:new T.MeshPhysicalMaterial({color:col(PAINT.meteor.c),roughness:.5,metalness:.25,clearcoat:.55,clearcoatRoughness:.16,envMapIntensity:.8,side:T.DoubleSide}),
+  trim:new T.MeshStandardMaterial({color:col('#24272a'),roughness:.6,envMapIntensity:.5,side:T.DoubleSide}),
+  gws:glassBase(),gfs:glassBase(),grs:glassBase(),grw:glassBase(),
+  tyre:new T.MeshStandardMaterial({color:col('#232527'),roughness:.92,envMapIntensity:.25,side:T.DoubleSide}),
+  rim:new T.MeshStandardMaterial({color:col('#9a9fa5'),roughness:.28,metalness:.85,envMapIntensity:1,side:T.DoubleSide}),
+  logo:new T.MeshStandardMaterial({color:col('#d9dde1'),roughness:.12,metalness:1,envMapIntensity:1.2,side:T.DoubleSide}),
+  lens:new T.MeshPhysicalMaterial({color:col('#7d838a'),roughness:.08,metalness:.6,clearcoat:1,envMapIntensity:1.2,side:T.DoubleSide}),
+  tail:new T.MeshPhysicalMaterial({color:col('#7a1517'),roughness:.12,clearcoat:1,clearcoatRoughness:.03,emissive:col('#3a0405'),emissiveIntensity:.4,envMapIntensity:1,side:T.DoubleSide}),
+  interior:new T.MeshStandardMaterial({color:col('#3a3c40'),roughness:.85,envMapIntensity:.4,side:T.DoubleSide})
+};
+const GLASS=['gws','gfs','grs','grw'];
+// VLT % -> how the glass reads on screen (opacity + film colour + how much it reflects)
+function shadeLook(v){const t=1-v/80;return{op:.1+Math.pow(t,.8)*.86,c:new T.Color().lerpColors(col('#56605f'),col('#040506'),Math.pow(t,.6)),env:.55-t*.15};}
+function swatchCss(v){const t=1-v/80;const l=Math.round(205-t*190);return 'rgb('+l+','+Math.round(l*1.03)+','+Math.round(l*1.08)+')';}
+function setGlass(z,v){const s=shadeLook(v),m=MAT[z];m.opacity=s.op;m.color.copy(s.c);m.envMapIntensity=s.env;}
+
+/* ---------- load ---------- */
+const MODEL='ranger.glb';
+const gl=new T.GLTFLoader();if(window.MeshoptDecoder)gl.setMeshoptDecoder(MeshoptDecoder);
+const nm=o=>(o.name||'').toLowerCase().replace(/_m(_\d+)?$/,'');
+gl.load(MODEL,g=>{
+  g.scene.traverse(o=>{if(!o.isMesh)return;const n=nm(o);
+    if(n.indexOf('badge')===0){const tx=o.material.map;if(tx){tx.encoding=T.sRGBEncoding;tx.anisotropy=8;}
+      o.material=new T.MeshPhysicalMaterial({map:tx,roughness:.25,clearcoat:1,clearcoatRoughness:.05,envMapIntensity:.8,side:T.DoubleSide});o.castShadow=true;return;}
+    const hit=MAT[n]?n:Object.keys(MAT).find(m=>n.indexOf(m)===0);o.material=MAT[hit||'clay'];
+    if(GLASS.includes(hit)){o.renderOrder=2;o.castShadow=false;}else o.castShadow=true;o.receiveShadow=true;});
+  scene.add(g.scene);loadingEl.remove();
+},x=>{if(x.total)loadingEl.textContent='Loading… '+Math.round(x.loaded/x.total*100)+'%';},
+()=>{loadingEl.textContent='The 3D model failed to load. Refresh to try again.';});
+
+/* ---------- tint UI ---------- */
+document.querySelectorAll('.zone').forEach(zEl=>{
+  const z=zEl.dataset.zone,box=zEl.querySelector('.shades');
+  SHADES.forEach(v=>{const b=document.createElement('button');b.id='shade-'+z+'-'+v;b.dataset.v=v;
+    b.setAttribute('aria-label',(v===80?'No tint':v+'% tint')+' on '+zEl.querySelector('.label').textContent);
+    b.innerHTML='<i style="background:'+swatchCss(v)+'"></i><span>'+(v===80?'None':v+'%')+'</span>';
+    b.addEventListener('click',()=>{tint[z]=v;markPreset(null);renderTint();});box.appendChild(b);});
+});
+function markPreset(p){document.querySelectorAll('#presets button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===p?'true':'false'));}
+document.querySelectorAll('#presets button').forEach(b=>b.addEventListener('click',()=>{Object.assign(tint,PRESETS[b.dataset.p]);markPreset(b.dataset.p);renderTint();}));
+function renderTint(){
+  let bad=[];
+  setGlass('grs',tint.rear);setGlass('grw',tint.rear);
+  ['gfs','rear'].forEach(z=>{if(z==='gfs')setGlass('gfs',tint.gfs);
+    document.querySelectorAll('.zone[data-zone="'+z+'"] .shades button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.v===tint[z]?'true':'false'));
+    const el=document.getElementById('vlt-'+z),over=tint[z]<LIMIT[z];
+    el.textContent=(tint[z]===80?'No tint':tint[z]+'% VLT')+(over?' · too dark':'');el.classList.toggle('bad',over);if(over)bad.push(z);});
+  setGlass('gws',80);
+  const L=document.getElementById('legal');L.classList.toggle('bad',bad.length>0);
+  document.getElementById('legal-text').textContent=bad.length===0?'Road legal in VIC':bad.includes('gfs')?'Front doors too dark for VIC (min 35%)':'Rear too dark for VIC (min 20%)';
+}
+renderTint();
+
+/* ---------- paint / view / spin ---------- */
+const TARGET=new T.Vector3(0,0.9,0);
+const VIEWS={front:[6.4,2.4,5.6],side:[0,1.3,9.8],rear:[-6.8,2.7,5.2]};
+controls.target.copy(TARGET);camera.position.set(...VIEWS.front);
+let tween=null;
+function goView(v){const to=new T.Vector3(...VIEWS[v]);
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){camera.position.copy(to);controls.target.copy(TARGET);return;}
+  tween={from:camera.position.clone(),to,fromT:controls.target.clone(),t0:performance.now(),d:700};}
+const state={paint:'meteor',view:'front',spin:'off'};
+function apply(){const pt=PAINT[state.paint];MAT.clay.color.copy(col(pt.c));MAT.clay.metalness=pt.m;MAT.clay.roughness=pt.m>0?.5:.55;
+  controls.autoRotate=state.spin==='on';}
+document.querySelectorAll('.seg[data-key]').forEach(seg=>{
+  seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=seg.dataset.key;state[k]=b.dataset.v;
+    seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+    if(k==='view')goView(b.dataset.v);apply();});
+});
+controls.addEventListener('start',()=>{tween=null;});
+apply();
+
+function resize(){const r=stage.getBoundingClientRect();const w=Math.max(r.width,1),h=Math.max(r.height,1);
+  renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1?42:30;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(stage);resize();
+function loop(now){requestAnimationFrame(loop);
+  if(tween){let t=Math.min((now-tween.t0)/tween.d,1);t=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+    camera.position.lerpVectors(tween.from,tween.to,t);controls.target.lerpVectors(tween.fromT,TARGET,t);if(t>=1)tween=null;}
+  controls.update();renderer.render(scene,camera);}
+requestAnimationFrame(loop);
+}
+
+/* ---------- tap to load: nothing heavy downloads until the visitor asks for 3D ---------- */
+const LIBS=['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js'];
+function loadScript(u){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=no;document.head.appendChild(s);});}
+let started=false;
+async function start3D(){
+  if(started)return;started=true;
+  const app=document.querySelector('.app');app.classList.add('live');
+  const L=document.getElementById('loading');L.hidden=false;L.textContent='Loading 3D…';
+  try{for(const u of LIBS)await loadScript(u);}catch(e){L.textContent='Couldn\u2019t load the 3D viewer. Check your connection and try again.';started=false;app.classList.remove('live');return;}
+  boot();
+}
+document.getElementById('go3d').addEventListener('click',start3D);
+if(window.parent!==window){const send=()=>window.parent.postMessage({fusion3dHeight:Math.ceil(document.querySelector('.app').getBoundingClientRect().height)},'*');
+  new ResizeObserver(send).observe(document.querySelector('.app'));window.addEventListener('load',send);send();document.documentElement.classList.add('embedded');}
+document.getElementById('stage').addEventListener('click',e=>{if(!started&&e.target.closest('.poster'))start3D();});
+</script>
+</body>
+</html>
