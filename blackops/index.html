@@ -168,7 +168,7 @@ html.embedded #stage{aspect-ratio:16/9;min-height:300px;max-height:640px;width:1
   </header>
 
   <div id="stage">
-    <img class="poster" src="poster.jpg?v=3" alt="Ford Ranger dual cab with paint protection film zones highlighted" width="1600" height="900" onerror="this.remove()">
+    <img class="poster" src="poster.jpg?v=4" alt="Ford Ranger dual cab with paint protection film zones highlighted" width="1600" height="900" onerror="this.remove()">
     <button class="go3d" id="go3d" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Zm0 2.3 5.7 3.2L12 11.7 6.3 8.5 12 5.3ZM6 10.2l5 2.8v5.6l-5-2.8v-5.6Zm7 8.4V13l5-2.8v5.6l-5 2.8Z" fill="currentColor"/></svg>Build your PPF package</button>
     <div class="loading" id="loading" hidden>Loading… 0%</div>
     <div class="tag live-only off" id="tag" role="status" aria-live="polite"><b id="tag-name">Bonnet</b><span id="tag-info"></span></div>
@@ -773,8 +773,8 @@ function buildTunnel(T,scene,renderer){
     scene.add(g);return {lvl:0};
   });
 
-  // big wall sign: the shop's logo with an LED halo behind it (halo colour = brand accent)
-  const sign={v:1,mats:[]};
+  // big wall sign: the shop's logo with an LED halo behind it (cool white LED, same as the tunnel)
+  const sign={v:1,mats:[]},SIGN_GLOW='#eaf7ff';
   if(BRAND.logo){
     const img=new Image();img.crossOrigin='anonymous';
     img.onload=()=>{
@@ -783,8 +783,8 @@ function buildTunnel(T,scene,renderer){
       // halo: the logo's outline, blurred and tinted, drawn a few times for a strong LED bloom
       const S=512,pad=150,c=document.createElement('canvas');c.width=S+pad*2;c.height=Math.round(S*ar)+pad*2;const g=c.getContext('2d');
       const tint=document.createElement('canvas');tint.width=S;tint.height=Math.round(S*ar);const tg=tint.getContext('2d');
-      tg.drawImage(img,0,0,tint.width,tint.height);tg.globalCompositeOperation='source-in';tg.fillStyle=BRAND.accent;tg.fillRect(0,0,tint.width,tint.height);
-      g.shadowColor=BRAND.accent;
+      tg.drawImage(img,0,0,tint.width,tint.height);tg.globalCompositeOperation='source-in';tg.fillStyle=SIGN_GLOW;tg.fillRect(0,0,tint.width,tint.height);
+      g.shadowColor=SIGN_GLOW;
       [[90,1],[45,1],[18,1]].forEach(([b,n])=>{g.shadowBlur=b;for(let i=0;i<n;i++)g.drawImage(tint,pad,pad);});
       g.globalCompositeOperation='destination-out';g.shadowBlur=0;g.drawImage(tint,pad,pad);   // keep the glow around the edge, not over the face
       const gt=new T.CanvasTexture(c);gt.encoding=T.sRGBEncoding;
@@ -794,11 +794,11 @@ function buildTunnel(T,scene,renderer){
       const glow=new T.Mesh(new T.PlaneGeometry(gw,gh),glowMat),face=new T.Mesh(new T.PlaneGeometry(W,H),faceMat);
       // soft wash of light on the wall around the sign
       const wc=document.createElement('canvas');wc.width=wc.height=256;const wg=wc.getContext('2d'),gr=wg.createRadialGradient(128,128,0,128,128,128);
-      gr.addColorStop(0,BRAND.accent);gr.addColorStop(1,'rgba(0,0,0,0)');wg.globalAlpha=.35;wg.fillStyle=gr;wg.fillRect(0,0,256,256);
+      gr.addColorStop(0,SIGN_GLOW);gr.addColorStop(1,'rgba(0,0,0,0)');wg.globalAlpha=.22;wg.fillStyle=gr;wg.fillRect(0,0,256,256);
       const washMat=new T.MeshBasicMaterial({map:new T.CanvasTexture(wc),transparent:true,depthWrite:false,blending:T.AdditiveBlending,fog:false});
       const wash=new T.Mesh(new T.PlaneGeometry(W*2.6,W*2.6),washMat);
-      // one on the back wall (seen in the intro) and a bigger one on the far side wall (seen behind the car while browsing)
-      [[[-8.55,3.45,0],PI/2,1],[[-7.15,2.95,-7.55],0,1.05],[[-7.15,2.95,7.55],PI,1.05]].forEach(([pos,ry,sc])=>{
+      // on the back wall, at the end of the tunnel
+      [[[-8.55,3.45,0],PI/2,1]].forEach(([pos,ry,sc])=>{
         const grp=new T.Group();[wash,glow,face].forEach((m,i)=>{const c=m.clone();c.position.z=i*.01;c.renderOrder=-2+i;grp.add(c);});
         grp.position.set(...pos);grp.rotation.y=ry;grp.scale.setScalar(sc);scene.add(grp);});
       sign.mats=[faceMat,glowMat,washMat];setSign(sign.v);
