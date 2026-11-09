@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Black Ops Detailing · PPF 3D</title>
+<style>
+/* Same look as the 3D tint viewer: black section, orange accent, Russo One headings, Jost body, light studio stage */
+:root{
+  --bg:#000000;
+  --stage-hi:#f6f7f8;
+  --stage-lo:#b8bcc1;
+  --fg:#ffffff;
+  --muted:#aaaaaa;
+  --line:#2a2a2a;
+  --panel:#151515;
+  --chip:#222222;
+  --accent:#f07a22;
+  --on-accent:#ffffff;
+  --film:#38b6ff;
+  --r:999px;--r2:12px;--r3:14px;
+  --hweight:400;--hcase:uppercase;--hspace:1px;
+  --display:"Russo One","Jost",Futura,sans-serif;
+  --body:"Jost",Futura,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+.app{min-height:100%;display:grid;grid-template-rows:auto auto auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:14px;gap:12px;align-content:start}
+header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px}
+.brand{display:flex;align-items:center;gap:14px;min-width:0}
+.brand img{height:64px;width:auto;flex:none}
+.brand .tt{display:flex;flex-direction:column;gap:6px;min-width:0}
+.phone{display:inline-flex;align-items:center;gap:8px;color:var(--fg);text-decoration:none;font-weight:600;font-size:14px;letter-spacing:.04em;
+  border:1px solid var(--line);border-radius:var(--r);padding:9px 14px;white-space:nowrap}
+.phone svg{color:var(--accent)}
+@media (max-width:560px){.brand img{height:48px}.phone{padding:7px 11px;font-size:13px}}
+h1{font-family:var(--display);font-weight:var(--hweight);font-size:clamp(26px,4vw,40px);letter-spacing:var(--hspace);color:var(--title,var(--accent));line-height:1;margin:0;text-transform:uppercase;text-wrap:balance}
+.sub{font-size:14px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+
+#stage{position:relative;border-radius:var(--r3);overflow:hidden;min-height:0;height:62vh;min-height:340px;
+  background:radial-gradient(120% 90% at 50% 35%,var(--stage-hi),var(--stage-lo))}
+/* car stays on screen while the settings scroll */
+.app.live #stage{position:sticky;top:0;z-index:5;box-shadow:0 0 0 14px var(--bg)}
+@media (min-width:900px){
+  .app{grid-template-columns:minmax(0,1.55fr) minmax(340px,1fr);grid-template-rows:auto 1fr;column-gap:20px;align-items:start}
+  header{grid-column:1/-1}
+  #stage{height:calc(100vh - 110px);min-height:420px}
+  .app.live #stage{top:14px;box-shadow:none}
+  .zones{grid-template-columns:1fr 1fr}
+}
+#stage canvas{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+#stage canvas.over{cursor:pointer}
+.hint{position:absolute;left:14px;bottom:12px;font-size:12px;color:#5d636a;pointer-events:none}
+.loading{position:absolute;inset:0;display:grid;place-items:center;font-size:14px;color:#4f555b;pointer-events:none}
+.poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.go3d{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:9px;
+  appearance:none;border:0;border-radius:var(--r);padding:13px 22px;background:var(--accent);color:var(--on-accent);
+  font:500 17px/1 var(--body);letter-spacing:.02em;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3);white-space:nowrap}
+.go3d:hover{filter:brightness(1.12)}
+.go3d:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.app:not(.live) .live-only{display:none!important}
+.app.live .poster,.app.live .go3d{display:none}
+.app:not(.live) #stage{cursor:pointer}
+
+/* stage overlays */
+.tag{position:absolute;left:12px;top:12px;max-width:calc(100% - 24px);display:flex;flex-direction:column;gap:2px;
+  background:#ffffff;color:#111;border-radius:var(--r2);padding:8px 12px;box-shadow:0 1px 3px rgba(0,0,0,.12);pointer-events:none;
+  transition:opacity .25s}
+.tag b{font-family:var(--display);font-weight:400;font-size:14px;letter-spacing:.5px;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.tag b::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--film);box-shadow:0 0 8px var(--film)}
+.tag span{font-size:12.5px;color:#4a4f55}
+.tag.off{opacity:0}
+.tools{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.tools button{appearance:none;border:0;border-radius:var(--r);background:#ffffff;color:#111;font:500 13px/1 var(--body);
+  padding:9px 13px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);white-space:nowrap}
+.tools button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.tools button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* price bar */
+.bar{border-radius:var(--r2)!important;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.total{display:flex;flex-direction:column;gap:2px;min-width:0}
+.total .label{margin:0}
+.amount{font-family:var(--display);font-size:28px;line-height:1;color:var(--fg);font-variant-numeric:tabular-nums}
+.picked{font-size:13px;color:var(--muted);max-width:60ch}
+.quote{appearance:none;border:0;border-radius:var(--r);padding:13px 22px;background:var(--accent);color:var(--on-accent);
+  font:600 16px/1 var(--body);cursor:pointer;text-decoration:none;white-space:nowrap}
+.quote:hover{filter:brightness(1.12)}
+.quote:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.quote[aria-disabled="true"]{opacity:.45;pointer-events:none}
+
+.label{font-family:var(--display);font-weight:var(--hweight);font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+.section{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.packs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.pack{appearance:none;text-align:left;border:2px solid var(--line);border-radius:var(--r2);background:var(--panel);color:var(--fg);
+  padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:3px;font-family:var(--body)}
+.pack b{font-weight:600;font-size:15px}
+.pack span{font-size:12.5px;color:var(--muted);line-height:1.3}
+.pack em{font-style:normal;font-size:14px;font-weight:500;color:var(--accent);font-variant-numeric:tabular-nums}
+.pack[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.pack:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.zones{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px}
+.zbtn{appearance:none;border:1px solid var(--line);border-radius:var(--r2);background:var(--chip);color:var(--fg);
+  padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;font:500 14px/1.2 var(--body);text-align:left}
+.zbtn .box{flex:none;width:18px;height:18px;border-radius:5px;border:2px solid #555;display:grid;place-items:center}
+.zbtn .nm{flex:1;min-width:0}
+.zbtn .pr{color:var(--muted);font-variant-numeric:tabular-nums;font-size:13px}
+.zbtn[aria-pressed="true"]{border-color:var(--film);background:#10202b}
+.zbtn[aria-pressed="true"] .box{border-color:var(--film);background:var(--film)}
+.zbtn[aria-pressed="true"] .box::after{content:"";width:5px;height:9px;border:solid #001018;border-width:0 2px 2px 0;transform:translateY(-1px) rotate(45deg)}
+.zbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.zbtn.focus{box-shadow:0 0 0 2px var(--film)}
+
+.rail{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:flex-end;margin-top:4px}
+.group{display:flex;flex-direction:column;gap:5px;min-width:0}
+.seg{display:inline-flex;background:var(--chip);border-radius:var(--r);padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{appearance:none;border:0;background:transparent;color:var(--fg);font:500 14px/1 var(--body);
+  padding:9px 14px;border-radius:var(--r);cursor:pointer;white-space:nowrap}
+.seg button:hover{background:#333}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--on-accent)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.sw-any{background:conic-gradient(#e33,#e9b31d,#4c4,#2bd,#33e,#c3c,#e33)!important}
+.anycol{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.anycol input[type=range]{-webkit-appearance:none;appearance:none;width:200px;max-width:100%;height:14px;border-radius:999px;outline:none;cursor:pointer}
+.anycol .hue{background:linear-gradient(90deg,#f33,#f93,#ee3,#3c3,#3cc,#36f,#93f,#f3c,#f33)}
+.anycol .light{background:linear-gradient(90deg,#111,var(--anymid,#3a6ea5),#eee)}
+.anycol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.anycol input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+.note{font-size:12.5px;color:var(--muted);max-width:75ch;margin:10px 0 0}
+.note b{color:var(--accent);font-weight:600}
+.disclaim{margin:0 0 14px;padding:10px 14px;border-radius:10px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-size:13.5px;line-height:1.4}
+.disclaim b{font-weight:600;color:var(--accent)}
+@media (max-width:560px){
+  #stage{height:46vh;min-height:270px}
+  .app.live #stage{border-radius:0 0 14px 14px;margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)))}
+  .seg button{padding:8px 10px;font-size:13px}
+  .tools{top:auto;bottom:10px;left:10px;right:10px;flex-direction:row;justify-content:flex-end;flex-wrap:wrap}
+  .tools button{padding:8px 11px;font-size:12px}
+  .hint{display:none}
+  .tag{right:12px}
+  .amount{font-size:24px}
+  .zones{grid-template-columns:1fr 1fr}
+  .zbtn{padding:9px 9px;font-size:13px;gap:8px}
+  .zbtn .pr{display:none}
+}
+html.embedded,html.embedded body{height:auto;background:transparent}
+html.embedded .app{max-width:1240px;margin:0 auto;min-height:0;grid-template-rows:auto auto auto}
+html.embedded #stage{aspect-ratio:16/9;min-height:300px;max-height:640px;width:100%}
+@media (max-width:560px){html.embedded #stage{aspect-ratio:4/5}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="brand"><img id="brand-logo" alt="" hidden><div class="tt"><h1 id="brand-title">Paint protection in 3D</h1><span class="sub" id="brand-sub">Tap a panel to see the film</span></div></div>
+    <a class="phone" id="brand-phone" hidden><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2Z"/></svg><span id="brand-phone-text"></span></a>
+  </header>
+
+  <div id="stage">
+    <img class="poster" src="poster.jpg?v=1" alt="Ford Ranger dual cab with paint protection film zones highlighted" width="1600" height="900" onerror="this.remove()">
+    <button class="go3d" id="go3d" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Zm0 2.3 5.7 3.2L12 11.7 6.3 8.5 12 5.3ZM6 10.2l5 2.8v5.6l-5-2.8v-5.6Zm7 8.4V13l5-2.8v5.6l-5 2.8Z" fill="currentColor"/></svg>Build your PPF package</button>
+    <div class="loading" id="loading" hidden>Loading… 0%</div>
+    <div class="tag live-only off" id="tag" role="status" aria-live="polite"><b id="tag-name">Bonnet</b><span id="tag-info"></span></div>
+    <div class="tools live-only">
+      <button type="button" id="btn-doors" aria-pressed="false">Open doors</button>
+      <button type="button" id="btn-tail" aria-pressed="false">Drop tailgate</button>
+      <button type="button" id="btn-reset">Reset view</button>
+    </div>
+    <div class="hint live-only">Tap a panel to add it · drag to orbit · pinch to zoom</div>
+  </div>
+
+  <div>
+    <div class="live-only">
+      <div class="bar">
+        <div class="total"><span class="label">Estimate</span><span class="amount" id="amount">$0</span><span class="picked" id="picked">Pick a package or tap panels on the car.</span></div>
+        <a class="quote" id="quote" href="#" aria-disabled="true">Get a quote</a>
+      </div>
+
+      <div class="section"><span class="label">Packages</span><div class="packs" id="packs"></div></div>
+      <div class="section"><span class="label">Panels</span><div class="zones" id="zones"></div></div>
+
+      <div class="rail">
+        <div class="group"><span class="label">Paint</span>
+          <div class="seg" data-key="paint">
+            <button id="paint-arctic" data-v="arctic" aria-pressed="false"><i class="sw" style="background:#d9dad6"></i>Arctic White</button>
+            <button id="paint-aluminium" data-v="aluminium" aria-pressed="false"><i class="sw" style="background:#a3a7ab"></i>Aluminium</button>
+            <button id="paint-meteor" data-v="meteor" aria-pressed="true"><i class="sw" style="background:#4a4e53"></i>Meteor Grey</button>
+            <button id="paint-shadow" data-v="shadow" aria-pressed="false"><i class="sw" style="background:#141518"></i>Shadow Black</button>
+            <button id="paint-blue" data-v="blue" aria-pressed="false"><i class="sw" style="background:#21497f"></i>Blue Lightning</button>
+            <button id="paint-custom" data-v="custom" aria-pressed="false"><i class="sw sw-any" id="sw-any"></i>Any colour</button>
+          </div></div>
+        <div class="group anycol" id="anycol" hidden>
+          <label class="label" for="any-hue">Colour</label>
+          <input type="range" id="any-hue" min="0" max="360" value="205" class="hue">
+          <label class="label" for="any-light">Light / dark</label>
+          <input type="range" id="any-light" min="6" max="85" value="38" class="light">
+        </div>
+        <div class="group"><span class="label">Spin</span>
+          <div class="seg" data-key="spin">
+            <button id="spin-on" data-v="on" aria-pressed="false">On</button>
+            <button id="spin-off" data-v="off" aria-pressed="true">Off</button>
+          </div></div>
+      </div>
+    </div>
+    <p class="note" id="brand-note"></p>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   EDIT HERE — brand, prices, packages, quote link
+   ===================================================================== */
+const BRAND = {
+  name:     'Black Ops Detailing',
+  logo:     'logo.png',                 // image file next to this page ('' = no logo)
+  title:    'Paint protection in 3D',
+  sub:      'Build your PPF package · Shepparton',
+  phone:    '0428 222 762',             // '' = hide
+  accent:   '#c8ff00',                  // buttons + highlights
+  onAccent: '#0a0a0a',                  // text on accent buttons
+  bg:       '#0a0a0a',
+  titleColour: '#fafafa',
+  display:  'ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif',
+  body:     'ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif',
+  headingWeight: 800, headingSpacing: '0',
+  round:    'square',                   // 'pill' or 'square'
+  note:     '<b>For illustration only.</b> Prices are estimates and coverage varies by vehicle. Book a consult at our Shepparton studio and we\'ll walk you through the film on your car.'
+};
+const PRICES = {               // AUD, per zone (both sides where there are two)
+  bonnet_full:    800,
+  bonnet_partial: 400,
+  bumper:         900,
+  guards:         500,
+  mirrors:        150,
+  headlights:     200,
+  door_cups:       80,
+  door_edges:     120,
+  sills:          250,
+  tailgate_top:   150,
+  body:          4500          // rest of the body (doors, roof, pillars, tub sides, tailgate)
+};
+const PACKAGES = [             // price: fixed package price (set to null to just add up the zones)
+  {id:'partial', name:'Partial Front',    info:'Bumper, bonnet leading edge, mirrors, headlights', price:1450,
+   zones:['bumper','bonnet_partial','mirrors','headlights']},
+  {id:'full',    name:'Full Front',       info:'Bumper, full bonnet, guards, mirrors, headlights', price:2290,
+   zones:['bumper','bonnet_full','guards','mirrors','headlights']},
+  {id:'doors',   name:'Door Protection',  info:'Door cups, door edges, door sills', price:400,
+   zones:['door_cups','door_edges','sills']},
+  {id:'track',   name:'Track Pack / Full Body', info:'Every painted panel plus lights', price:6990,
+   zones:['bumper','bonnet_full','guards','mirrors','headlights','door_cups','door_edges','sills','tailgate_top','body']}
+];
+const QUOTE_URL = 'https://blackopsdetailing.com.au/#/contact';   // where "Get a quote" goes
+const QUOTE_ADD_DETAILS = false;                               // add the picked zones + estimate to the link
+const FILM_COLOUR = '#38b6ff';                                   // highlight colour for the film
+/* ===================================================================== */
+
+(function applyBrand(){const r=document.documentElement.style,B=BRAND;
+  r.setProperty('--accent',B.accent);r.setProperty('--on-accent',B.onAccent);r.setProperty('--bg',B.bg);if(B.titleColour)r.setProperty('--title',B.titleColour);
+  r.setProperty('--display',B.display);r.setProperty('--body',B.body);r.setProperty('--hweight',B.headingWeight);r.setProperty('--hspace',B.headingSpacing);
+  if(B.round==='square'){r.setProperty('--r','3px');r.setProperty('--r2','4px');r.setProperty('--r3','6px');}
+  document.title=B.name+' · PPF 3D';
+  document.getElementById('brand-title').textContent=B.title;document.getElementById('brand-sub').textContent=B.sub;
+  const L=document.getElementById('brand-logo');if(B.logo){L.src=B.logo;L.alt=B.name;L.hidden=false;}
+  const P=document.getElementById('brand-phone');if(B.phone){P.hidden=false;P.href='tel:'+B.phone.replace(/\s/g,'');document.getElementById('brand-phone-text').textContent=B.phone;}
+  document.getElementById('brand-note').innerHTML=B.note;
+})();
+
+const ZONES = [
+  // id, name, info line, parts (model part names), optional regions, camera view, door state
+  {id:'bonnet_full',    name:'Bonnet (full)',        info:'Whole bonnet, edges wrapped',              parts:['clay_bonnet'], view:'bonnet', excl:['bonnet_partial']},
+  {id:'bonnet_partial', name:'Bonnet leading edge',  info:'Front 450 mm of the bonnet, where chips hit', parts:['clay_bonnet'], view:'bonnet', excl:['bonnet_full'],
+   regions:{clay_bonnet:[[2.12,0,-2,9,9,2]]}, edge:true},
+  {id:'bumper',         name:'Front bumper',         info:'Full front bumper',                       parts:['clay_bumper'], view:'bumper'},
+  {id:'guards',         name:'Front guards',         info:'Both front guards',                        parts:['clay_guard_l','clay_guard_r'], view:'guards'},
+  {id:'mirrors',        name:'Mirrors',              info:'Both mirror caps',                         parts:['clay_mirror_fl','clay_mirror_fr'], view:'mirrors', doors:false},
+  {id:'headlights',     name:'Headlights',           info:'Both headlight lenses',                    parts:['lens_headlight_l','lens_headlight_r'], view:'headlights'},
+  {id:'door_cups',      name:'Door cups',            info:'Behind all 4 door handles (fingernail scratches)', view:'cups', doors:false,
+   parts:['clay_door_fl','clay_door_fr','clay_door_rl','clay_door_rr'],
+   regions:{clay_door_f:[[0.14,1.065,0.78,0.43,1.175,1.2],[0.14,1.065,-1.2,0.43,1.175,-0.78]],
+            clay_door_r:[[-0.755,1.085,0.76,-0.465,1.195,1.2],[-0.755,1.085,-1.2,-0.465,1.195,-0.76]]}, round:0.04},
+  {id:'door_edges',     name:'Door edges',           info:'Rear edge of all 4 doors (door-ding chips)', view:'edges', doors:true,
+   parts:['clay_door_fl','clay_door_fr','clay_door_rl','clay_door_rr'],
+   regions:{clay_door_f:[[-1,0.3,-2,0.085,1.27,2]], clay_door_r:[[-2,0.3,-2,-0.775,1.29,2]]}},
+  {id:'sills',          name:'Door sills',           info:'Sill tops and rockers where feet scuff',  view:'sills', doors:true,
+   parts:['clay'], regions:{clay:[[-0.84,0.36,0.70,1.13,0.57,1.0],[-0.84,0.36,-1.0,1.13,0.57,-0.70]]}},
+  {id:'tailgate_top',   name:'Tailgate top',         info:'Top edge of the tailgate where loads slide', view:'tailgate',
+   parts:['clay_tailgate'], regions:{clay_tailgate:[[-3,1.19,-2,-2.3,2,2]]}},
+  {id:'body',           name:'Rest of body',         info:'Doors, roof, pillars, tub sides, tailgate', view:'body', doors:false,
+   parts:['clay','clay_door_fl','clay_door_fr','clay_door_rl','clay_door_rr','clay_tailgate']}
+];
+// tap priority: small zones win over the big panel they sit on
+const PICK_ORDER=['door_cups','door_edges','sills','tailgate_top','bonnet_partial','mirrors','headlights','bumper','guards','bonnet_full','body'];
+// camera position + look-at point for each zone
+const VIEWS={
+  home:     {p:[6.4,2.4,5.6],  t:[0,0.9,0]},
+  bonnet:   {p:[6.2,3.6,2.6],  t:[1.6,1.0,0]},
+  bumper:   {p:[6.6,1.5,2.6],  t:[2.2,0.75,0]},
+  guards:   {p:[4.4,1.8,5.6],  t:[1.5,0.9,0.4]},
+  mirrors:  {p:[3.4,2.0,4.0],  t:[0.9,1.3,0.7]},
+  headlights:{p:[5.6,1.6,3.0], t:[2.4,0.95,0.3]},
+  cups:     {p:[0.2,1.5,4.6],  t:[-0.15,1.1,0.7]},
+  edges:    {p:[-2.8,1.7,4.9], t:[-0.2,0.95,0.6]},
+  sills:    {p:[-1.7,2.6,3.7], t:[0.3,0.5,0.8]},
+  tailgate: {p:[-6.0,2.9,2.4], t:[-2.4,1.0,0]},
+  body:     {p:[-3.2,3.0,6.6], t:[-0.2,1.0,0]}
+};
+
+const selected=new Set();
+let focusId=null;
+
+/* ---------- pricing ---------- */
+const money=n=>'$'+Math.round(n).toLocaleString('en-AU');
+function priceOf(sel){
+  // best price: use any package fully inside the selection at its package price, add the rest at zone prices
+  let best={total:[...sel].reduce((a,z)=>a+(PRICES[z]||0),0),packs:[]};
+  const packs=PACKAGES.filter(p=>p.price!=null&&p.zones.every(z=>sel.has(z)));
+  const n=packs.length;
+  for(let m=1;m<(1<<n);m++){
+    const used=new Set();let ok=true,total=0,names=[];
+    for(let i=0;i<n;i++)if(m&(1<<i)){const p=packs[i];if(p.zones.some(z=>used.has(z))){ok=false;break;}p.zones.forEach(z=>used.add(z));total+=p.price;names.push(p.name);}
+    if(!ok)continue;
+    sel.forEach(z=>{if(!used.has(z))total+=PRICES[z]||0;});
+    if(total<best.total)best={total,packs:names};
+  }
+  return best;
+}
+
+/* ---------- build the zone + package buttons ---------- */
+const zonesEl=document.getElementById('zones'),packsEl=document.getElementById('packs');
+ZONES.forEach(z=>{const b=document.createElement('button');b.type='button';b.className='zbtn';b.id='zone-'+z.id;b.dataset.z=z.id;b.setAttribute('aria-pressed','false');
+  b.innerHTML='<span class="box"></span><span class="nm">'+z.name+'</span><span class="pr">'+money(PRICES[z.id]||0)+'</span>';
+  b.addEventListener('click',()=>toggleZone(z.id,true));zonesEl.appendChild(b);});
+PACKAGES.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='pack';b.id='pack-'+p.id;b.setAttribute('aria-pressed','false');
+  const val=p.price!=null?p.price:p.zones.reduce((a,z)=>a+(PRICES[z]||0),0);
+  b.innerHTML='<b>'+p.name+'</b><span>'+p.info+'</span><em>'+money(val)+'</em>';
+  b.addEventListener('click',()=>pickPackage(p));packsEl.appendChild(b);});
+
+function pickPackage(p){
+  const on=p.zones.every(z=>selected.has(z))&&p.zones.length===selected.size;
+  selected.clear();
+  if(!on)p.zones.forEach(z=>selected.add(z));
+  focusId=null;
+  if(window.PPF3D){PPF3D.sync();PPF3D.flyTo(on?'home':(p.id==='doors'?'edges':p.id==='track'?'home':'bonnet'),p.id==='doors'?true:false);PPF3D.showTag(on?null:{name:p.name,info:p.info});}
+  renderUI();
+}
+function toggleZone(id,fromList){
+  const z=ZONES.find(x=>x.id===id);
+  if(selected.has(id)){selected.delete(id);if(focusId===id)focusId=null;}
+  else{selected.add(id);(z.excl||[]).forEach(e=>selected.delete(e));focusId=id;}
+  if(window.PPF3D){PPF3D.sync();
+    if(selected.has(id)){PPF3D.flyTo(z.view,z.doors);PPF3D.showTag(z);PPF3D.pulse(id);}
+    else PPF3D.showTag(null);}
+  renderUI();
+}
+function renderUI(){
+  ZONES.forEach(z=>{const b=document.getElementById('zone-'+z.id);b.setAttribute('aria-pressed',selected.has(z.id)?'true':'false');b.classList.toggle('focus',focusId===z.id);});
+  PACKAGES.forEach(p=>{const on=p.zones.every(z=>selected.has(z))&&p.zones.length===selected.size;document.getElementById('pack-'+p.id).setAttribute('aria-pressed',on?'true':'false');});
+  const pr=priceOf(selected);
+  document.getElementById('amount').textContent=money(pr.total);
+  const names=ZONES.filter(z=>selected.has(z.id)).map(z=>z.name);
+  document.getElementById('picked').textContent=names.length?(pr.packs.length?pr.packs.join(' + ')+' price · ':'')+names.join(', '):'Pick a package or tap panels on the car.';
+  const q=document.getElementById('quote');
+  q.setAttribute('aria-disabled',names.length?'false':'true');
+  if(QUOTE_ADD_DETAILS){const u=new URL(QUOTE_URL);u.searchParams.set('service','PPF');u.searchParams.set('zones',names.join(', '));u.searchParams.set('estimate',Math.round(pr.total));q.href=u.toString();}
+  else q.href=QUOTE_URL;
+  q.target='_top';
+}
+renderUI();
+
+/* =====================================================================
+   3D
+   ===================================================================== */
+function boot(){
+const stage=document.getElementById('stage');
+const loadingEl=document.getElementById('loading');
+if(!window.THREE||!THREE.GLTFLoader){loadingEl.textContent='3D engine failed to load. Refresh to try again.';return;}
+const T=THREE, PI=Math.PI;
+const col=h=>new T.Color(h).convertSRGBToLinear();
+
+/* renderer / scene */
+const renderer=new T.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=T.sRGBEncoding;
+renderer.toneMapping=T.ACESFilmicToneMapping;
+renderer.toneMappingExposure=0.85;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=T.PCFShadowMap;
+stage.prepend(renderer.domElement);
+const canvas=renderer.domElement;
+
+const scene=new T.Scene();
+const camera=new T.PerspectiveCamera(30,1,0.1,100);
+const controls=new T.OrbitControls(camera,canvas);
+controls.enableDamping=true;controls.dampingFactor=0.08;
+controls.minDistance=2.2;controls.maxDistance=16;
+controls.maxPolarAngle=PI/2-0.04;
+controls.autoRotateSpeed=1.2;
+controls.enablePan=false;
+
+const ENVS={};
+(function(){ // fallback studio environment, replaced by the photographed HDRI once loaded
+  const env=new T.Scene();
+  const dg=new T.SphereGeometry(20,48,24),dc=[],pos=dg.attributes.position;
+  for(let i=0;i<pos.count;i++){const h=pos.getY(i)/20;let v=h<-0.15?0.05:h<0.35?0.05+(h+0.15)/0.5*0.27:h<0.55?0.32:0.32+Math.min((h-0.55)/0.45,1)*0.23;dc.push(v,v,v);}
+  dg.setAttribute('color',new T.Float32BufferAttribute(dc,3));
+  env.add(new T.Mesh(dg,new T.MeshBasicMaterial({vertexColors:true,side:T.BackSide})));
+  const box=(w,h,x,y,z,ry,rx,k)=>{const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({color:new T.Color(k,k,k),side:T.DoubleSide}));
+    m.position.set(x,y,z);m.rotation.set(rx||0,ry||0,0);env.add(m);};
+  box(12,5,0,9,0,0,PI/2,5.0);box(9,1.6,0,3.2,9,0,0,3.2);box(9,1.6,0,3.2,-9,PI,0,2.4);box(3,5,10,3,0,-PI/2,0,1.8);box(3,5,-10,3,0,PI/2,0,2.4);
+  const pm=new T.PMREMGenerator(renderer);scene.environment=pm.fromScene(env,0.03).texture;
+  new T.RGBELoader().setDataType(T.UnsignedByteType).load('env.hdr',tex=>{
+    tex.encoding=T.RGBEEncoding;
+    const env=new T.Scene();
+    env.add(new T.Mesh(new T.SphereGeometry(30,64,32),new T.MeshBasicMaterial({map:tex,side:T.BackSide,color:new T.Color(.42,.42,.42)})));
+    const strip=(w,h,x,y,z,rx,ry,i)=>{const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({color:new T.Color(i*.3,i*.3,i*.3),side:T.DoubleSide}));m.position.set(x,y,z);m.rotation.set(rx,ry,0);env.add(m);};
+    strip(11,2.2,0,7,0,PI/2,0,7);strip(12,.7,0,2.6,7.5,0,0,6);strip(12,.7,0,2.6,-7.5,0,0,6);
+    strip(12,.5,0,.9,8,0,0,2.2);strip(12,.5,0,.9,-8,0,0,2.2);strip(3,4,9,3,0,0,-PI/2,2.5);strip(3,4,-9,3,0,0,PI/2,2.5);
+    ENVS.soft=pm.fromScene(env,0.01).texture;scene.environment=ENVS.soft;
+  });
+})();
+scene.add(new T.HemisphereLight(0xffffff,0x6b6e72,0.12));
+const key=new T.DirectionalLight(0xfff3e6,0.55);
+key.position.set(1.2,10,0.9);key.castShadow=true;key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-4.5,right:4.5,top:4.5,bottom:-4.5,near:1,far:30});
+key.shadow.bias=-0.0004;key.shadow.normalBias=0.02;key.shadow.radius=7;scene.add(key);
+const ground=new T.Mesh(new T.PlaneGeometry(40,40),new T.ShadowMaterial({opacity:0.2}));
+ground.rotation.x=-PI/2;ground.receiveShadow=true;scene.add(ground);
+(function(){ // soft contact shadow under the ute
+  const W=1024,H=512,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  const rr=(w,h,r)=>{const x=(W-w)/2,y=(H-h)/2;g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fill();};
+  for(let i=0;i<40;i++){const k=i/39;g.fillStyle='rgba(0,0,0,'+(0.018+0.01*k)+')';rr(980-k*230,440-k*190,200-k*120);}
+  for(let i=0;i<24;i++){g.fillStyle='rgba(0,0,0,0.03)';rr(760-i/23*80,250-i/23*60,70);}
+  const m=new T.Mesh(new T.PlaneGeometry(7.0,3.4),new T.MeshBasicMaterial({map:new T.CanvasTexture(c),transparent:true,depthWrite:false,opacity:.9}));
+  m.rotation.x=-PI/2;m.position.set(0,0.004,0);m.renderOrder=-1;scene.add(m);})();
+
+/* materials (same as tint viewer) */
+const PAINT={custom:{c:'#2f5f8f',m:.25},arctic:{c:'#d9dad6',m:0},aluminium:{c:'#a3a7ab',m:.3},meteor:{c:'#4a4e53',m:.25},shadow:{c:'#141518',m:.1},blue:{c:'#21497f',m:.25}};
+const glass=op=>new T.MeshPhysicalMaterial({color:col('#56605f'),roughness:.03,metalness:.1,clearcoat:1,clearcoatRoughness:.02,envMapIntensity:.55,transparent:true,opacity:op,depthWrite:false,side:T.DoubleSide});
+const MAT={
+  clay:new T.MeshPhysicalMaterial({color:col(PAINT.meteor.c),roughness:.36,metalness:.45,clearcoat:.7,clearcoatRoughness:.14,envMapIntensity:.85,side:T.DoubleSide}),
+  trim:new T.MeshStandardMaterial({color:col('#24272a'),roughness:.6,envMapIntensity:.5,side:T.DoubleSide}),
+  gws:glass(.12),gfs:glass(.16),grs:glass(.3),grw:glass(.3),
+  tyre:new T.MeshStandardMaterial({color:col('#232527'),roughness:.92,envMapIntensity:.25,side:T.DoubleSide}),
+  rim:new T.MeshStandardMaterial({color:col('#9a9fa5'),roughness:.28,metalness:.85,envMapIntensity:1,side:T.DoubleSide}),
+  logo:new T.MeshStandardMaterial({color:col('#d9dde1'),roughness:.12,metalness:1,envMapIntensity:1.2,side:T.DoubleSide}),
+  lens:new T.MeshPhysicalMaterial({color:col('#7d838a'),roughness:.08,metalness:.6,clearcoat:1,envMapIntensity:1.2,side:T.DoubleSide}),
+  tail:new T.MeshPhysicalMaterial({color:col('#7a1517'),roughness:.12,clearcoat:1,clearcoatRoughness:.03,emissive:col('#3a0405'),emissiveIntensity:.4,envMapIntensity:1,side:T.DoubleSide}),
+  interior:new T.MeshStandardMaterial({color:col('#3a3c40'),roughness:.85,envMapIntensity:.4,side:T.DoubleSide})
+};
+const GLASS=['gws','gfs','grs','grw'];
+
+/* film highlight: glossy blue sheen, clipped to each zone's region, with a sweep when it's first picked */
+const filmVS=`
+uniform mat4 uRest;
+varying vec3 vRest;varying vec3 vN;varying vec3 vV;
+void main(){
+  vRest=(uRest*vec4(position,1.0)).xyz;
+  vec4 mv=modelViewMatrix*vec4(position,1.0);
+  vN=normalize(normalMatrix*normal);vV=-mv.xyz;
+  gl_Position=projectionMatrix*mv;
+}`;
+const filmFS=`
+uniform vec3 uCol;uniform float uTime;uniform float uPulse;uniform float uAlpha;
+uniform int uN;uniform vec3 uMin[4];uniform vec3 uMax[4];uniform float uR;
+varying vec3 vRest;varying vec3 vN;varying vec3 vV;
+void main(){
+  float edge=1.0;
+  if(uN>0){
+    float d=1e5;
+    for(int i=0;i<4;i++){ if(i>=uN)break;
+      vec3 c=(uMin[i]+uMax[i])*0.5;vec3 h=(uMax[i]-uMin[i])*0.5-vec3(uR);
+      vec3 q=abs(vRest-c)-h;d=min(d,length(max(q,0.0))+min(max(q.x,max(q.y,q.z)),0.0)-uR);}
+    if(d>0.0)discard;
+    edge=smoothstep(0.0,0.012,-d);
+  }
+  vec3 N=normalize(vN);if(!gl_FrontFacing)N=-N;
+  float fr=pow(1.0-clamp(abs(dot(N,normalize(vV))),0.0,1.0),2.0);
+  float sweep=smoothstep(0.09,0.0,abs(fract(vRest.x*0.45+vRest.y*0.25-uTime*0.6)-0.5))*uPulse;
+  float rim=1.0-edge;
+  vec3 c=mix(uCol,vec3(1.0),clamp(fr*0.55+sweep*0.7+rim*0.6,0.0,1.0));
+  float a=uAlpha*(0.34+0.5*fr)+sweep*0.35+rim*0.45;
+  gl_FragColor=vec4(c,clamp(a,0.0,0.92));
+}`;
+
+const parts={};          // part name -> mesh
+const overlays=[];       // {zone, mesh, mat}
+const doorGroups={};     // door_fl / door_fr / door_rl / door_rr / tailgate -> {pivot, axis, open, cur, target}
+
+const nm=o=>(o.name||'').toLowerCase().replace(/_m(_\d+)?$/,'');
+const gl=new T.GLTFLoader();if(window.MeshoptDecoder)gl.setMeshoptDecoder(MeshoptDecoder);
+gl.load('ranger-ppf.glb?v=1',g=>{
+  const meshes=[];
+  g.scene.traverse(o=>{if(o.isMesh)meshes.push(o);});
+  meshes.forEach(o=>{const n=nm(o);
+    if(n.indexOf('badge')===0){const tx=o.material.map;if(tx){tx.encoding=T.sRGBEncoding;tx.anisotropy=8;}
+      o.material=new T.MeshPhysicalMaterial({map:tx,roughness:.25,clearcoat:1,clearcoatRoughness:.05,envMapIntensity:.8,side:T.DoubleSide});o.castShadow=true;}
+    else{const hit=MAT[n]?n:Object.keys(MAT).find(m=>n.indexOf(m)===0);o.material=MAT[hit||'clay'];
+      if(GLASS.includes(hit)){o.renderOrder=2;o.castShadow=false;}else o.castShadow=true;o.receiveShadow=true;}
+    if(!parts[n])parts[n]=o;
+  });
+  scene.add(g.scene);scene.updateMatrixWorld(true);
+
+  // film overlays (made while everything is still in its closed "rest" position)
+  const film=col(FILM_COLOUR);
+  ZONES.forEach(z=>z.parts.forEach(pn=>{const m=parts[pn];if(!m)return;
+    let regs=null;if(z.regions)for(const k in z.regions)if(pn===k||pn.indexOf(k)===0)regs=z.regions[k];
+    if(z.regions&&!regs)return;
+    const mins=[],maxs=[];for(let i=0;i<4;i++){const r=regs&&regs[i];mins.push(new T.Vector3(...(r?r.slice(0,3):[0,0,0])));maxs.push(new T.Vector3(...(r?r.slice(3):[0,0,0])));}
+    const mat=new T.ShaderMaterial({vertexShader:filmVS,fragmentShader:filmFS,transparent:true,depthWrite:false,side:T.DoubleSide,
+      polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,
+      uniforms:{uRest:{value:m.matrixWorld.clone()},uCol:{value:film},uTime:{value:0},uPulse:{value:0},uAlpha:{value:1},
+        uN:{value:regs?regs.length:0},uMin:{value:mins},uMax:{value:maxs},uR:{value:z.round||0.008}}});
+    const ov=new T.Mesh(m.geometry,mat);ov.renderOrder=3;ov.visible=false;ov.raycast=()=>{};
+    m.add(ov);overlays.push({zone:z.id,mesh:ov,mat,part:pn});
+  }));
+
+  // hinges: doors swing on their front edge, tailgate drops on its bottom edge
+  const groupOf=n=>{let m=n.match(/_(door|mirror)_([fr][lr])$/);if(m)return 'door_'+m[2];if(/_tailgate$/.test(n))return 'tailgate';return null;};
+  const members={};meshes.forEach(o=>{const k=groupOf(nm(o));if(k)(members[k]=members[k]||[]).push(o);});
+  const v=new T.Vector3();
+  for(const k in members){
+    const b=new T.Box3();
+    members[k].forEach(o=>{const pa=o.geometry.attributes.position,ix=o.geometry.index;const n=ix?ix.count:pa.count;
+      for(let q=0;q<n;q+=3){v.fromBufferAttribute(pa,ix?ix.getX(q):q).applyMatrix4(o.matrixWorld);b.expandByPoint(v);}});
+    const piv=new T.Group();let axis,open;
+    if(k==='tailgate'){piv.position.set(b.min.x+0.04,b.min.y,0);axis='z';open=PI/2;}
+    else{const right=k.endsWith('r');piv.position.set(b.max.x,(b.min.y+b.max.y)/2,right?b.max.z-0.05:b.min.z+0.05);axis='y';open=(right?1:-1)*1.1;}
+    scene.add(piv);scene.updateMatrixWorld(true);members[k].forEach(o=>piv.attach(o));
+    doorGroups[k]={pivot:piv,axis,open,cur:0,target:0};
+  }
+  loadingEl.remove();
+  window.PPF3D.ready=true;sync();
+  if(selected.size){const last=ZONES.find(z=>selected.has(z.id));flyTo(last.view,last.doors);}
+},x=>{if(x.total)loadingEl.textContent='Loading… '+Math.round(x.loaded/x.total*100)+'%';},
+()=>{loadingEl.textContent='The 3D model failed to load. Refresh to try again.';});
+
+/* selection -> overlays */
+let pulseZone=null,pulseT0=0;
+function sync(){overlays.forEach(o=>{o.mesh.visible=selected.has(o.zone);});}
+function pulse(id){pulseZone=id;pulseT0=performance.now();}
+
+/* doors */
+function setDoors(open){['door_fl','door_fr','door_rl','door_rr'].forEach(k=>{if(doorGroups[k])doorGroups[k].target=open?1:0;});
+  document.getElementById('btn-doors').setAttribute('aria-pressed',open?'true':'false');
+  document.getElementById('btn-doors').textContent=open?'Close doors':'Open doors';}
+function setTail(open){if(doorGroups.tailgate)doorGroups.tailgate.target=open?1:0;
+  document.getElementById('btn-tail').setAttribute('aria-pressed',open?'true':'false');
+  document.getElementById('btn-tail').textContent=open?'Close tailgate':'Drop tailgate';}
+document.getElementById('btn-doors').addEventListener('click',()=>setDoors(document.getElementById('btn-doors').getAttribute('aria-pressed')!=='true'));
+document.getElementById('btn-tail').addEventListener('click',()=>setTail(document.getElementById('btn-tail').getAttribute('aria-pressed')!=='true'));
+document.getElementById('btn-reset').addEventListener('click',()=>{setDoors(false);setTail(false);flyTo('home');showTag(null);});
+
+/* camera fly-to */
+let tween=null;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function flyTo(view,doors){
+  if(doors===true)setDoors(true);else if(doors===false)setDoors(false);
+  const V=VIEWS[view]||VIEWS.home;
+  const tp=new T.Vector3(...V.p),tt=new T.Vector3(...V.t);
+  // keep the camera on whichever side of the car the customer is already looking at
+  if(view!=='home'&&camera.position.z<-0.5){tp.z*=-1;tt.z*=-1;}
+  const narrow=camera.aspect<1;if(narrow){tp.sub(tt).multiplyScalar(1.25).add(tt);}
+  controls.autoRotate=false;
+  if(reduce){camera.position.copy(tp);controls.target.copy(tt);return;}
+  tween={from:camera.position.clone(),to:tp,fromT:controls.target.clone(),toT:tt,t0:performance.now(),d:900};
+}
+const tagEl=document.getElementById('tag');
+function showTag(z){if(!z){tagEl.classList.add('off');return;}
+  document.getElementById('tag-name').textContent=z.name;
+  document.getElementById('tag-info').textContent=(z.info||'')+(z.id&&PRICES[z.id]!=null?' · '+money(PRICES[z.id]):'');
+  tagEl.classList.remove('off');}
+
+/* tap a panel */
+const ray=new T.Raycaster(),ptr=new T.Vector2();
+let down=null;
+function pickAt(e){
+  const r=canvas.getBoundingClientRect();ptr.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);
+  ray.setFromCamera(ptr,camera);
+  const pickable=Object.values(parts).filter(m=>ZONES.some(z=>z.parts.includes(nm(m))));
+  const hits=ray.intersectObjects(Object.values(parts).filter(m=>m.visible),false);
+  if(!hits.length||!pickable.includes(hits[0].object))return null;
+  const h=hits[0],pn=nm(h.object);
+  // hit point back in the closed "rest" position, so regions still work with doors open
+  const ov=overlays.find(o=>o.part===pn);if(!ov)return null;
+  const rest=h.object.worldToLocal(h.point.clone()).applyMatrix4(ov.mat.uniforms.uRest.value);
+  for(const id of PICK_ORDER){const z=ZONES.find(x=>x.id===id);if(!z.parts.includes(pn))continue;
+    let regs=null;if(z.regions){for(const k in z.regions)if(pn===k||pn.indexOf(k)===0)regs=z.regions[k];if(!regs)continue;
+      if(!regs.some(b=>rest.x>=b[0]&&rest.y>=b[1]&&rest.z>=b[2]&&rest.x<=b[3]&&rest.y<=b[4]&&rest.z<=b[5]))continue;}
+    return id;}
+  return null;
+}
+canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now()};});
+canvas.addEventListener('pointerup',e=>{if(!down)return;const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y);const dt=performance.now()-down.t;down=null;
+  if(moved>7||dt>600)return;
+  let id=pickAt(e);if(!id)return;
+  // doors / roof / tub: just explain, so one tap on a door doesn't add the whole body
+  if(id==='body'){showTag({name:'Doors, roof & tub',info:'Covered in Track Pack / Full Body, or add "Rest of body" below'});return;}
+  // tapping the bonnet with the leading edge already picked upgrades to the full bonnet
+  if(id==='bonnet_partial'&&selected.has('bonnet_full'))id='bonnet_full';
+  else if(id==='bonnet_full'&&selected.has('bonnet_partial'))id='bonnet_full';
+  toggleZone(id,false);});
+let hoverRaf=0;
+canvas.addEventListener('pointermove',e=>{if(e.pointerType!=='mouse'||down)return;cancelAnimationFrame(hoverRaf);
+  hoverRaf=requestAnimationFrame(()=>canvas.classList.toggle('over',!!pickAt(e)));});
+controls.addEventListener('start',()=>{tween=null;});
+
+/* paint / spin */
+const state={paint:'meteor',spin:'off'};
+function anyHex(){const h=+document.getElementById('any-hue').value,l=+document.getElementById('any-light').value/100;
+  const sat=l<.12||l>.8?.25:.62;return '#'+new T.Color().setHSL(h/360,sat,l).getHexString();}
+function apply(){if(state.paint==='custom')PAINT.custom.c=anyHex();
+  document.getElementById('anycol').hidden=state.paint!=='custom';
+  const mid='#'+new T.Color().setHSL(+document.getElementById('any-hue').value/360,.62,.42).getHexString();
+  document.getElementById('anycol').style.setProperty('--anymid',mid);document.getElementById('sw-any').style.boxShadow=state.paint==='custom'?'0 0 0 2px '+PAINT.custom.c:'';
+  const pt=PAINT[state.paint];MAT.clay.color.copy(col(pt.c));
+  MAT.clay.metalness=pt.m>0?pt.m+.2:.05;MAT.clay.roughness=pt.m>0?.36:.42;
+  controls.autoRotate=state.spin==='on';}
+document.querySelectorAll('.seg[data-key]').forEach(seg=>{
+  seg.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;state[seg.dataset.key]=b.dataset.v;
+    seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));apply();});});
+['any-hue','any-light'].forEach(id=>document.getElementById(id).addEventListener('input',apply));
+apply();
+
+controls.target.set(...VIEWS.home.t);camera.position.set(...VIEWS.home.p);
+function resize(){const r=stage.getBoundingClientRect();const w=Math.max(r.width,1),h=Math.max(r.height,1);
+  renderer.setSize(w,h,false);camera.aspect=w/h;camera.fov=w/h<1?42:30;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(stage);resize();
+
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+let last=performance.now();
+function loop(now){requestAnimationFrame(loop);
+  const dt=Math.min((now-last)/1000,0.05);last=now;
+  if(tween){const t=ease(Math.min((now-tween.t0)/tween.d,1));
+    camera.position.lerpVectors(tween.from,tween.to,t);controls.target.lerpVectors(tween.fromT,tween.toT,t);if(t>=1)tween=null;}
+  for(const k in doorGroups){const d=doorGroups[k];if(d.cur!==d.target){
+    const step=dt/(reduce?0.001:0.7);d.cur=d.target>d.cur?Math.min(d.target,d.cur+step):Math.max(d.target,d.cur-step);
+    d.pivot.rotation[d.axis]=d.open*ease(d.cur);}}
+  const pt=(now-pulseT0)/1000;
+  overlays.forEach(o=>{const u=o.mat.uniforms;u.uTime.value=now/1000;
+    const p=o.zone===pulseZone?Math.max(0,1-pt/2.2):0;u.uPulse.value=p;u.uAlpha.value=o.zone===focusId?1:0.8;});
+  controls.update();renderer.render(scene,camera);}
+requestAnimationFrame(loop);
+
+window.PPF3D={sync,flyTo,showTag,pulse,ready:false,setDoors,setTail};
+}
+
+/* ---------- tap to load: nothing heavy downloads until the visitor asks for 3D ---------- */
+const LIBS=['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/RGBELoader.js',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js'];
+function loadScript(u){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=no;document.head.appendChild(s);});}
+let started=false;
+async function start3D(){
+  if(started)return;started=true;
+  const app=document.querySelector('.app');app.classList.add('live');
+  const L=document.getElementById('loading');L.hidden=false;L.textContent='Loading 3D…';
+  try{for(const u of (window.PPF_LIBS||LIBS))await loadScript(u);}catch(e){L.textContent='Couldn’t load the 3D viewer. Check your connection and try again.';started=false;app.classList.remove('live');return;}
+  boot();
+}
+document.getElementById('go3d').addEventListener('click',start3D);
+document.getElementById('stage').addEventListener('click',e=>{if(!started&&e.target.closest('.poster'))start3D();});
+if(/[?&]auto=1/.test(location.search)||!document.querySelector('.poster'))start3D();
+if(window.parent!==window){const send=()=>window.parent.postMessage({fusion3dHeight:Math.ceil(document.querySelector('.app').getBoundingClientRect().height)},'*');
+  new ResizeObserver(send).observe(document.querySelector('.app'));window.addEventListener('load',send);send();document.documentElement.classList.add('embedded');}
+</script>
+</body>
+</html>
