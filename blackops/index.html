@@ -168,7 +168,7 @@ html.embedded #stage{aspect-ratio:16/9;min-height:300px;max-height:640px;width:1
   </header>
 
   <div id="stage">
-    <img class="poster" src="poster.jpg?v=2" alt="Ford Ranger dual cab with paint protection film zones highlighted" width="1600" height="900" onerror="this.remove()">
+    <img class="poster" src="poster.jpg?v=3" alt="Ford Ranger dual cab with paint protection film zones highlighted" width="1600" height="900" onerror="this.remove()">
     <button class="go3d" id="go3d" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Zm0 2.3 5.7 3.2L12 11.7 6.3 8.5 12 5.3ZM6 10.2l5 2.8v5.6l-5-2.8v-5.6Zm7 8.4V13l5-2.8v5.6l-5 2.8Z" fill="currentColor"/></svg>Build your PPF package</button>
     <div class="loading" id="loading" hidden>Loading… 0%</div>
     <div class="tag live-only off" id="tag" role="status" aria-live="polite"><b id="tag-name">Bonnet</b><span id="tag-info"></span></div>
@@ -563,15 +563,15 @@ function startIntro(){
   if(!tunnel)return;
   scene.traverse(o=>{if(!o.isMesh)return;[].concat(o.material).forEach(m=>{if(m&&!m.isShaderMaterial&&('envMapIntensity' in m)&&!sceneMats.includes(m)){m.userData.baseEnv=m.envMapIntensity;sceneMats.push(m);}});});
   if(selected.size||reduce){tunnel.arches.forEach((a,i)=>tunnel.setArch(i,1));setLevel(1);return;}
-  tunnel.arches.forEach((a,i)=>tunnel.setArch(i,0));setLevel(0);
-  camera.position.set(9.3,1.0,0.5);controls.target.set(0,0.9,0);
+  tunnel.arches.forEach((a,i)=>tunnel.setArch(i,0));tunnel.setSign(0);setLevel(0);
+  camera.position.set(9.3,1.6,0.5);controls.target.set(0,1.1,0);
   renderer.compile(scene,camera);
   intro={t:-0.15,fired:new Set(),whoosh:false,shine:false};
   SFX.humOn();hintEl.textContent='Tap to skip intro';showTag(null);
 }
 function finishIntro(keepCam){
   if(!intro)return;intro=null;
-  tunnel.arches.forEach((a,i)=>tunnel.setArch(i,1));setLevel(1);SFX.humOff();hintEl.textContent=hintText;
+  tunnel.arches.forEach((a,i)=>tunnel.setArch(i,1));tunnel.setSign(1);setLevel(1);SFX.humOff();hintEl.textContent=hintText;
   if(!keepCam&&!tween){const V=VIEWS.home;camera.position.set(...V.p);controls.target.set(...V.t);}
 }
 function introFrame(dt){
@@ -582,7 +582,8 @@ function introFrame(dt){
       v=t<ti+.05?1:t<ti+.12?.12:t<ti+.16?.8:1;}
     tunnel.setArch(i,v);lit+=Math.min(v,1);}
   setLevel(.06+.94*Math.pow(lit/n,1.3));
-  const A={p:new T.Vector3(9.3,1.0,0.5),t:new T.Vector3(0,0.9,0)},B={p:new T.Vector3(7.6,1.1,1.0),t:new T.Vector3(0,0.9,0)};
+  {const ts=.55+n*.24+.3;let v=0;if(t>=ts){if(!intro.fired.has('sign')){intro.fired.add('sign');SFX.clunk();}v=t<ts+.06?1:t<ts+.14?.1:t<ts+.2?.7:1;}tunnel.setSign(v);}
+  const A={p:new T.Vector3(9.3,1.6,0.5),t:new T.Vector3(0,1.1,0)},B={p:new T.Vector3(7.6,1.5,1.0),t:new T.Vector3(0,1.0,0)};
   if(t<2.9){const k=ease(Math.min(t/2.9,1));camera.position.lerpVectors(A.p,B.p,k);controls.target.copy(A.t);}
   else{
     if(!intro.whoosh){intro.whoosh=true;SFX.whoosh(1.9);}
@@ -772,6 +773,40 @@ function buildTunnel(T,scene,renderer){
     scene.add(g);return {lvl:0};
   });
 
+  // big wall sign: the shop's logo with an LED halo behind it (halo colour = brand accent)
+  const sign={v:1,mats:[]};
+  if(BRAND.logo){
+    const img=new Image();img.crossOrigin='anonymous';
+    img.onload=()=>{
+      const tex=new T.Texture(img);tex.encoding=T.sRGBEncoding;tex.anisotropy=8;tex.needsUpdate=true;
+      const ar=img.height/img.width,W=2.4,H=W*ar;
+      // halo: the logo's outline, blurred and tinted, drawn a few times for a strong LED bloom
+      const S=512,pad=150,c=document.createElement('canvas');c.width=S+pad*2;c.height=Math.round(S*ar)+pad*2;const g=c.getContext('2d');
+      const tint=document.createElement('canvas');tint.width=S;tint.height=Math.round(S*ar);const tg=tint.getContext('2d');
+      tg.drawImage(img,0,0,tint.width,tint.height);tg.globalCompositeOperation='source-in';tg.fillStyle=BRAND.accent;tg.fillRect(0,0,tint.width,tint.height);
+      g.shadowColor=BRAND.accent;
+      [[90,1],[45,1],[18,1]].forEach(([b,n])=>{g.shadowBlur=b;for(let i=0;i<n;i++)g.drawImage(tint,pad,pad);});
+      g.globalCompositeOperation='destination-out';g.shadowBlur=0;g.drawImage(tint,pad,pad);   // keep the glow around the edge, not over the face
+      const gt=new T.CanvasTexture(c);gt.encoding=T.sRGBEncoding;
+      const gw=W*(c.width/S),gh=gw*(c.height/c.width);
+      const glowMat=new T.MeshBasicMaterial({map:gt,transparent:true,depthWrite:false,blending:T.AdditiveBlending,fog:false,toneMapped:false});
+      const faceMat=new T.MeshBasicMaterial({map:tex,transparent:true,fog:false});
+      const glow=new T.Mesh(new T.PlaneGeometry(gw,gh),glowMat),face=new T.Mesh(new T.PlaneGeometry(W,H),faceMat);
+      // soft wash of light on the wall around the sign
+      const wc=document.createElement('canvas');wc.width=wc.height=256;const wg=wc.getContext('2d'),gr=wg.createRadialGradient(128,128,0,128,128,128);
+      gr.addColorStop(0,BRAND.accent);gr.addColorStop(1,'rgba(0,0,0,0)');wg.globalAlpha=.35;wg.fillStyle=gr;wg.fillRect(0,0,256,256);
+      const washMat=new T.MeshBasicMaterial({map:new T.CanvasTexture(wc),transparent:true,depthWrite:false,blending:T.AdditiveBlending,fog:false});
+      const wash=new T.Mesh(new T.PlaneGeometry(W*2.6,W*2.6),washMat);
+      // one on the back wall (seen in the intro) and a bigger one on the far side wall (seen behind the car while browsing)
+      [[[-8.55,3.45,0],PI/2,1],[[-7.15,2.95,-7.55],0,1.05],[[-7.15,2.95,7.55],PI,1.05]].forEach(([pos,ry,sc])=>{
+        const grp=new T.Group();[wash,glow,face].forEach((m,i)=>{const c=m.clone();c.position.z=i*.01;c.renderOrder=-2+i;grp.add(c);});
+        grp.position.set(...pos);grp.rotation.y=ry;grp.scale.setScalar(sc);scene.add(grp);});
+      sign.mats=[faceMat,glowMat,washMat];setSign(sign.v);
+    };
+    img.src=BRAND.logo;
+  }
+  function setSign(v){sign.v=v;if(!sign.mats.length)return;const [f,gl,w]=sign.mats;f.color.setScalar(.06+.94*v);gl.opacity=v;w.opacity=v;}
+
   // reflections: an environment made of the same tunnel, all lit, so the paint shows the light stripes
   const env=new T.Scene();
   env.add(new T.Mesh(new T.SphereGeometry(30,32,16),new T.MeshBasicMaterial({color:new T.Color(.012,.013,.014),side:T.BackSide})));
@@ -797,7 +832,7 @@ function buildTunnel(T,scene,renderer){
     segs.forEach(sg=>{const dc=cam.position.distanceTo(sg.c);const f=Math.min(1,Math.max(.12,(dc-(dt-2.4))/1.6));
       if(Math.abs(f-sg.f)>.01){sg.f=f;paint(sg);}});}
   function setRoom(v){walls.forEach(m=>{if(m.userData.e==null)m.userData.e=m.emissiveIntensity;m.emissiveIntensity=m.userData.e*v;});}
-  return {arches,setArch,setRoom,fade,count:ARCH_X.length};
+  return {arches,setArch,setRoom,fade,setSign,count:ARCH_X.length};
 }
 
 /* ---------- intro sounds (made in code, no music files) ---------- */
