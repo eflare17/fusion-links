@@ -168,7 +168,7 @@ html.embedded #stage{aspect-ratio:16/9;min-height:300px;max-height:640px;width:1
   </header>
 
   <div id="stage">
-    <img class="poster" src="poster.jpg?v=4" alt="Ford Ranger dual cab with paint protection film zones highlighted" width="1600" height="900" onerror="this.remove()">
+    <img class="poster" src="poster.jpg?v=5" alt="Ford Ranger dual cab with paint protection film zones highlighted" width="1600" height="900" onerror="this.remove()">
     <button class="go3d" id="go3d" type="button"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9L12 3Zm0 2.3 5.7 3.2L12 11.7 6.3 8.5 12 5.3ZM6 10.2l5 2.8v5.6l-5-2.8v-5.6Zm7 8.4V13l5-2.8v5.6l-5 2.8Z" fill="currentColor"/></svg>Build your PPF package</button>
     <div class="loading" id="loading" hidden>Loading… 0%</div>
     <div class="tag live-only off" id="tag" role="status" aria-live="polite"><b id="tag-name">Bonnet</b><span id="tag-info"></span></div>
@@ -237,6 +237,7 @@ const BRAND = {
   headingWeight: 800, headingSpacing: '0',
   round:    'square',                   // 'pill' or 'square'
   studio:   'tunnel',                   // 'light' = grey studio, 'tunnel' = dark workshop with LED light tunnel + intro
+  smoke:    false,                      // smoke jets in the intro
   note:     '<b>For illustration only.</b> Prices are estimates and coverage varies by vehicle. Book a consult at our Shepparton studio and we\'ll walk you through the film on your car.'
 };
 const PRICES = {               // AUD, per zone (both sides where there are two)
@@ -417,7 +418,7 @@ const key=new T.DirectionalLight(0xfff3e6,0.55);
 key.position.set(1.2,10,0.9);key.castShadow=true;key.shadow.mapSize.set(2048,2048);
 Object.assign(key.shadow.camera,{left:-4.5,right:4.5,top:4.5,bottom:-4.5,near:1,far:30});
 key.shadow.bias=-0.0004;key.shadow.normalBias=0.02;key.shadow.radius=7;scene.add(key);
-if(STUDIO){hemi.color.set(0xd8f4ff);hemi.groundColor.set(0x1a1b1c);hemi.intensity=.25;key.color.set(0xe8f8ff);key.intensity=.45;}
+if(STUDIO){hemi.color.set(0xd8f4ff);hemi.groundColor.set(0x0e0f10);hemi.intensity=.12;key.color.set(0xe8f8ff);key.intensity=.3;}
 const ENVS={};
 let tunnel=null;
 if(STUDIO){tunnel=buildTunnel(T,scene,renderer);}
@@ -517,6 +518,7 @@ gl.load('ranger-ppf.glb?v=1',g=>{
     else{const hit=MAT[n]?n:Object.keys(MAT).find(m=>n.indexOf(m)===0);o.material=MAT[hit||'clay'];
       if(GLASS.includes(hit)){o.renderOrder=2;o.castShadow=false;}else o.castShadow=true;o.receiveShadow=true;}
     if(!parts[n])parts[n]=o;
+    if(STUDIO&&n.indexOf('lens_headlight')===0){if(!MAT.headlamp){MAT.headlamp=MAT.lens.clone();MAT.headlamp.emissive=col('#9fdcff');MAT.headlamp.emissiveIntensity=0;}o.material=MAT.headlamp;}
   });
   scene.add(g.scene);scene.updateMatrixWorld(true);
 
@@ -555,45 +557,73 @@ gl.load('ranger-ppf.glb?v=1',g=>{
 },x=>{if(x.total)loadingEl.textContent='Loading… '+Math.round(x.loaded/x.total*100)+'%';},
 ()=>{loadingEl.textContent='The 3D model failed to load. Refresh to try again.';});
 
-/* ---------- studio intro: lights switch on back to front, camera sweeps round ---------- */
-let intro=null,sceneMats=[];
+/* ---------- studio intro: pitch black, headlights wake, frames light up through the haze, sign hits, camera sweeps round ---------- */
+let intro=null,sceneMats=[],drl=0;
 const hintEl=document.getElementById('hint'),hintText=hintEl.textContent;
-function setLevel(v){sceneMats.forEach(m=>{m.envMapIntensity=m.userData.baseEnv*v;});hemi.intensity=.25*v;key.intensity=.45*v;tunnel.setRoom(.12+.88*v);}
+const EXPOSURE=renderer.toneMappingExposure;
+const DRL_ON=.35;          // how bright the headlights stay after the intro
+function setLevel(v){sceneMats.forEach(m=>{m.envMapIntensity=m.userData.baseEnv*v;});hemi.intensity=.12*v;key.intensity=.3*v;tunnel.setRoom(.03+.97*v);}
+let lampGlows=[];
+function setDRL(v){drl=v;if(MAT.headlamp)MAT.headlamp.emissiveIntensity=.55*v;lampGlows.forEach(g=>{g.material.opacity=v;});}
+function makeLampGlows(){
+  if(lampGlows.length)return;
+  const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d'),gr=g.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,'rgba(230,248,255,1)');gr.addColorStop(.25,'rgba(150,215,255,.55)');gr.addColorStop(1,'rgba(150,215,255,0)');g.fillStyle=gr;g.fillRect(0,0,128,128);
+  const tex=new T.CanvasTexture(c);
+  ['lens_headlight_l','lens_headlight_r'].forEach(n=>{const m=parts[n];if(!m)return;const b=new T.Box3(),v=new T.Vector3(),pa=m.geometry.attributes.position,ix=m.geometry.index;
+    for(let q=0;q<ix.count;q+=3){v.fromBufferAttribute(pa,ix.getX(q)).applyMatrix4(m.matrixWorld);b.expandByPoint(v);}
+    const sp=new T.Sprite(new T.SpriteMaterial({map:tex,transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:0,fog:false}));
+    const c3=b.getCenter(new T.Vector3());sp.position.set(b.max.x+.05,c3.y,c3.z);sp.scale.set(.9,.6,1);sp.renderOrder=7;scene.add(sp);lampGlows.push(sp);});
+}
 function startIntro(){
   if(!tunnel)return;
+  makeLampGlows();
   scene.traverse(o=>{if(!o.isMesh)return;[].concat(o.material).forEach(m=>{if(m&&!m.isShaderMaterial&&('envMapIntensity' in m)&&!sceneMats.includes(m)){m.userData.baseEnv=m.envMapIntensity;sceneMats.push(m);}});});
-  if(selected.size||reduce){tunnel.arches.forEach((a,i)=>tunnel.setArch(i,1));setLevel(1);return;}
-  tunnel.arches.forEach((a,i)=>tunnel.setArch(i,0));tunnel.setSign(0);setLevel(0);
-  camera.position.set(9.3,1.6,0.5);controls.target.set(0,1.1,0);
+  if(selected.size||reduce){tunnel.arches.forEach((a,i)=>tunnel.setArch(i,1));setLevel(1);setDRL(DRL_ON);return;}
+  tunnel.arches.forEach((a,i)=>tunnel.setArch(i,0));tunnel.setSign(0);setLevel(0);setDRL(0);
+  camera.position.set(5.8,0.6,2.1);controls.target.set(1.0,0.85,0.2);
   renderer.compile(scene,camera);
-  intro={t:-0.15,fired:new Set(),whoosh:false,shine:false};
-  SFX.humOn();hintEl.textContent='Tap to skip intro';showTag(null);
+  intro={t:-0.15,fired:new Set()};
+  hintEl.textContent='Tap to skip intro';showTag(null);
 }
 function finishIntro(keepCam){
   if(!intro)return;intro=null;
-  tunnel.arches.forEach((a,i)=>tunnel.setArch(i,1));tunnel.setSign(1);setLevel(1);SFX.humOff();hintEl.textContent=hintText;
+  tunnel.arches.forEach((a,i)=>tunnel.setArch(i,1));tunnel.setSign(1);setLevel(1);setDRL(DRL_ON);renderer.toneMappingExposure=EXPOSURE;
+  SFX.humOff();hintEl.textContent=hintText;
   if(!keepCam&&!tween){const V=VIEWS.home;camera.position.set(...V.p);controls.target.set(...V.t);}
 }
+const once=(k,f)=>{if(!intro.fired.has(k)){intro.fired.add(k);f();}};
 function introFrame(dt){
   intro.t+=Math.min(dt,1/30);const t=Math.max(intro.t,0),n=tunnel.count;
+  once('rumble',()=>{SFX.rumble(3.6);SFX.humOn();});
+  // headlights wake up first, in the dark
+  const td=.9;let d=0;if(t>=td){once('drl',()=>SFX.blip());d=t<td+.08?1:t<td+.16?0:t<td+.24?1:t<td+.3?.3:1;}
+  setDRL(d*(t<3.6?1:DRL_ON+(1-DRL_ON)*Math.max(0,1-(t-3.6)/1.5)));
+  // frames light up back to front
   let lit=0;
-  for(let i=0;i<n;i++){const ti=.55+i*.24;let v=0;
-    if(t>=ti){if(!intro.fired.has(i)){intro.fired.add(i);SFX.clunk();SFX.humTo(.035*(i+1)/n,.15);}
-      v=t<ti+.05?1:t<ti+.12?.12:t<ti+.16?.8:1;}
+  for(let i=0;i<n;i++){const ti=1.5+i*.27;let v=0;
+    if(t>=ti){once(i,()=>{SFX.clunk();SFX.humTo(.035*(i+1)/n,.15);if(i===2&&tunnel.hasSmoke){tunnel.smokeBurst();SFX.blast();}});
+      v=t<ti+.05?1:t<ti+.12?.08:t<ti+.17?.9:t<ti+.21?.25:1;}
     tunnel.setArch(i,v);lit+=Math.min(v,1);}
-  setLevel(.06+.94*Math.pow(lit/n,1.3));
-  {const ts=.55+n*.24+.3;let v=0;if(t>=ts){if(!intro.fired.has('sign')){intro.fired.add('sign');SFX.clunk();}v=t<ts+.06?1:t<ts+.14?.1:t<ts+.2?.7:1;}tunnel.setSign(v);}
-  const A={p:new T.Vector3(9.3,1.6,0.5),t:new T.Vector3(0,1.1,0)},B={p:new T.Vector3(7.6,1.5,1.0),t:new T.Vector3(0,1.0,0)};
-  if(t<2.9){const k=ease(Math.min(t/2.9,1));camera.position.lerpVectors(A.p,B.p,k);controls.target.copy(A.t);}
+  setLevel(Math.pow(lit/n,1.5));
+  // sign hits with a boom and a flash
+  const ts=1.5+n*.27+.35;let sv=0;
+  if(t>=ts){once('sign',()=>{SFX.clunk();SFX.boom();});sv=t<ts+.06?1:t<ts+.14?.1:t<ts+.2?.8:1;}
+  tunnel.setSign(sv);
+  renderer.toneMappingExposure=EXPOSURE*(t>=ts?1+.55*Math.exp(-(t-ts)/.35):1);
+  // camera: low and close on the headlights, pulls back through the tunnel, then sweeps round
+  const A={p:new T.Vector3(5.8,0.6,2.1),t:new T.Vector3(1.0,0.85,0.2)},B={p:new T.Vector3(9.3,1.6,0.5),t:new T.Vector3(0,1.1,0)};
+  const tb=ts+.5;
+  if(t<tb){const k=ease(Math.min(t/tb,1));camera.position.lerpVectors(A.p,B.p,k);controls.target.lerpVectors(A.t,B.t,k);}
   else{
-    if(!intro.whoosh){intro.whoosh=true;SFX.whoosh(1.9);}
-    const k=ease(Math.min((t-2.9)/1.9,1)),H=VIEWS.home,ht=new T.Vector3(...H.t);
+    once('whoosh',()=>SFX.whoosh(2.0));
+    const k=ease(Math.min((t-tb)/2.0,1)),H=VIEWS.home,ht=new T.Vector3(...H.t);
     const from=B.p.clone().sub(B.t),to=new T.Vector3(...H.p).sub(ht);
     const a0=Math.atan2(from.x,from.z),a1=Math.atan2(to.x,to.z),r0=from.length(),r1=to.length(),p0=Math.acos(from.y/r0),p1=Math.acos(to.y/r1);
     const az=a0+(a1-a0)*k,po=p0+(p1-p0)*k,r=r0+(r1-r0)*k,tg=B.t.clone().lerp(ht,k);
     camera.position.set(tg.x+r*Math.sin(po)*Math.sin(az),tg.y+r*Math.cos(po),tg.z+r*Math.sin(po)*Math.cos(az));controls.target.copy(tg);
-    if(t>4.5&&!intro.shine){intro.shine=true;SFX.shimmer();}
-    if(t>=4.8)finishIntro(true);
+    if(t>tb+1.7)once('shine',()=>SFX.shimmer());
+    if(t>=tb+2.05)finishIntro(true);
   }
 }
 const soundBtn=document.getElementById('btn-sound');
@@ -698,6 +728,7 @@ let last=performance.now();
 function loop(now){requestAnimationFrame(loop);
   const dt=Math.min((now-last)/1000,0.05);last=now;
   if(intro)introFrame(dt);
+  if(tunnel&&tunnel.hasSmoke)tunnel.smokeFrame(dt,drl,camera);
   if(tween){const t=ease(Math.min((now-tween.t0)/tween.d,1));
     camera.position.lerpVectors(tween.from,tween.to,t);controls.target.lerpVectors(tween.fromT,tween.toT,t);if(t>=1)tween=null;}
   for(const k in doorGroups){const d=doorGroups[k];if(d.cur!==d.target){
@@ -723,7 +754,7 @@ function buildTunnel(T,scene,renderer){
   const TUBE='#e4f8ff';
   const ARCH_X=[-3.9,-2.6,-1.3,0,1.3,2.6,3.9];          // tunnel runs along the car, back to front
   const PROFILE=[[-2.25,0.05],[-2.25,2.0],[-1.35,2.9],[1.35,2.9],[2.25,2.0],[2.25,0.05]]; // [z,y] of one frame
-  scene.background=col('#0b0c0d');scene.fog=new T.Fog(col('#0b0c0d'),11,26);
+  scene.background=col('#070809');scene.fog=new T.Fog(col('#070809'),10,24);
 
   // canvas textures: polished concrete + chequer plate
   const cv=(w,h,draw)=>{const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new T.CanvasTexture(c);t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=8;return t;};
@@ -739,7 +770,7 @@ function buildTunnel(T,scene,renderer){
   const plate=cv(256,256,(g,w,h)=>plateDraw(g,w,h,false)),plateB=cv(256,256,(g,w,h)=>plateDraw(g,w,h,true));
   plate.encoding=T.sRGBEncoding;plate.repeat.set(4,8);plateB.repeat.set(4,8);
 
-  const floorMat=new T.MeshStandardMaterial({map:concrete,color:col('#9a9a95'),roughness:.42,metalness:.15,envMapIntensity:.6});
+  const floorMat=new T.MeshStandardMaterial({map:concrete,color:col('#6e6e6a'),roughness:.4,metalness:.15,envMapIntensity:.55});
   const floor=new T.Mesh(new T.PlaneGeometry(40,40),floorMat);floor.rotation.x=-PI/2;floor.receiveShadow=true;scene.add(floor);
   const matMat=new T.MeshStandardMaterial({map:plate,bumpMap:plateB,bumpScale:.012,roughness:.35,metalness:.7,envMapIntensity:.9});
   const mat=new T.Mesh(new T.PlaneGeometry(6.8,3.4),matMat);mat.rotation.x=-PI/2;mat.position.y=.003;mat.receiveShadow=true;scene.add(mat);
@@ -747,8 +778,8 @@ function buildTunnel(T,scene,renderer){
   // room shell
   const wall=(w,h,x,y,z,ry,rx,c,e)=>{const m=new T.Mesh(new T.PlaneGeometry(w,h),new T.MeshStandardMaterial({color:col(c),roughness:.92,emissive:col(c),emissiveIntensity:e}));
     m.position.set(x,y,z);m.rotation.set(rx||0,ry||0,0);m.receiveShadow=true;scene.add(m);return m.material;};
-  const walls=[wall(20,5.2,-8.6,2.6,0,PI/2,0,'#6e6b61',.22),wall(20,5.2,10,2.6,0,-PI/2,0,'#1d1e1f',.15),
-    wall(20,5.2,0,2.6,-7.6,0,0,'#2a2b2c',.15),wall(20,5.2,0,2.6,7.6,PI,0,'#2a2b2c',.15),wall(20,16,0,5.2,0,0,PI/2,'#141516',.2)];
+  const walls=[wall(20,5.2,-8.6,2.6,0,PI/2,0,'#4a4842',.1),wall(20,5.2,10,2.6,0,-PI/2,0,'#121314',.06),
+    wall(20,5.2,0,2.6,-7.6,0,0,'#18191a',.06),wall(20,5.2,0,2.6,7.6,PI,0,'#18191a',.06),wall(20,16,0,5.2,0,0,PI/2,'#0d0e0f',.08)];
   // roof purlins + a couple of dim high-bay lights
   const pur=new T.MeshStandardMaterial({color:col('#3a3c3e'),roughness:.7,metalness:.4,emissive:col('#3a3c3e'),emissiveIntensity:.15});walls.push(pur);
   for(let i=-3;i<=3;i++){const b=new T.Mesh(new T.BoxGeometry(18,.08,.14),pur);b.position.set(0,5.05,i*2.2);scene.add(b);}
@@ -805,7 +836,7 @@ function buildTunnel(T,scene,renderer){
     };
     img.src=BRAND.logo;
   }
-  function setSign(v){sign.v=v;if(!sign.mats.length)return;const [f,gl,w]=sign.mats;f.color.setScalar(.06+.94*v);gl.opacity=v;w.opacity=v;}
+  function setSign(v){sign.v=v;if(!sign.mats.length)return;const [f,gl,w]=sign.mats;f.color.setScalar(v);gl.opacity=v;w.opacity=v;}
 
   // reflections: an environment made of the same tunnel, all lit, so the paint shows the light stripes
   const env=new T.Scene();
@@ -816,6 +847,46 @@ function buildTunnel(T,scene,renderer){
   ARCH_X.forEach(x=>{for(let i=0;i<PROFILE.length-1;i++)seg([x,PROFILE[i][1]-.9,PROFILE[i][0]],[x,PROFILE[i+1][1]-.9,PROFILE[i+1][0]],.05,envTube,env);});
   const pm=new T.PMREMGenerator(renderer);scene.environment=pm.fromScene(env,0.012).texture;
 
+  // light pooling on the polished floor under each frame
+  const stripTex=cv(64,256,(g,w,h)=>{const gx=g.createLinearGradient(0,0,w,0);gx.addColorStop(0,'rgba(255,255,255,0)');gx.addColorStop(.5,'rgba(255,255,255,1)');gx.addColorStop(1,'rgba(255,255,255,0)');
+    g.fillStyle=gx;g.fillRect(0,0,w,h);g.globalCompositeOperation='destination-in';const gy=g.createLinearGradient(0,0,0,h);
+    gy.addColorStop(0,'rgba(0,0,0,1)');gy.addColorStop(.18,'rgba(0,0,0,.55)');gy.addColorStop(.5,'rgba(0,0,0,.25)');gy.addColorStop(.82,'rgba(0,0,0,.55)');gy.addColorStop(1,'rgba(0,0,0,1)');g.fillStyle=gy;g.fillRect(0,0,w,h);});
+  stripTex.wrapS=stripTex.wrapT=T.ClampToEdgeWrapping;
+  const strips=ARCH_X.map(x=>{const m=new T.MeshBasicMaterial({map:stripTex,color:col('#bfeaff'),transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:0});
+    const pl=new T.Mesh(new T.PlaneGeometry(.75,4.9),m);pl.rotation.x=-PI/2;pl.position.set(x,.009,0);pl.renderOrder=1;scene.add(pl);return m;});
+
+  // smoke: CO2-style jets that blast straight up from the floor at the frame posts, then fade
+  const smoke=[];let burstT=-1;
+  const JETS=[[-2.6,-2.0],[-2.6,2.0],[0,-2.0],[0,2.0],[2.6,-2.0],[2.6,2.0]];   // [x,z] nozzles beside the frame posts
+  if(BRAND.smoke){
+    const st=cv(128,128,(g,w,h)=>{const gr=g.createRadialGradient(w/2,h/2,0,w/2,h/2,w/2);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.35,'rgba(255,255,255,.75)');gr.addColorStop(.7,'rgba(255,255,255,.22)');gr.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=gr;g.fillRect(0,0,w,h);
+      for(let i=0;i<60;i++){const x=w/2+(Math.random()-.5)*w*.6,y=h/2+(Math.random()-.5)*h*.6;g.fillStyle='rgba(0,0,0,'+(Math.random()*.08)+')';g.beginPath();g.arc(x,y,3+Math.random()*8,0,7);g.fill();}});
+    st.wrapS=st.wrapT=T.ClampToEdgeWrapping;
+    for(let i=0;i<240;i++){const mat=new T.SpriteMaterial({map:st,transparent:true,depthWrite:false,opacity:0,rotation:Math.random()*PI*2,fog:false});
+      const sp=new T.Sprite(mat);sp.visible=false;sp.renderOrder=6;scene.add(sp);smoke.push({sp,mat,age:9,life:1});}
+  }
+  let next=0;
+  function emit(j){const o=smoke[next];next=(next+1)%smoke.length;const [x,z]=JETS[j];
+    o.p=new T.Vector3(x+(Math.random()-.5)*.08,.04,z+(Math.random()-.5)*.08);
+    o.v=new T.Vector3((Math.random()-.5)*.35,5.2+Math.random()*1.4,(Math.random()-.5)*.35+(z>0?-.12:.12));
+    o.age=0;o.life=1.1+Math.random()*.5;o.vr=(Math.random()-.5)*2;o.sp.visible=true;}
+  function smokeBurst(){if(smoke.length)burstT=0;}
+  function smokeFrame(dt,drl,cam){
+    if(!smoke.length)return;
+    if(burstT>=0){burstT+=dt;
+      if(burstT<.6){const per=Math.max(1,Math.round(dt*55));for(let j=0;j<JETS.length;j++)for(let k=0;k<per;k++)emit(j);}   // ~0.6 s blast
+      else if(burstT>3)burstT=-1;}
+    smoke.forEach(o=>{if(!o.sp.visible)return;o.age+=dt;if(o.age>o.life){o.sp.visible=false;o.mat.opacity=0;return;}
+      const k=o.age/o.life;o.v.multiplyScalar(Math.exp(-2.2*dt));o.v.y-=.4*dt;o.p.addScaledVector(o.v,dt);
+      const sc=.16+.9*Math.pow(k,.85);o.sp.scale.set(sc,sc,1);o.sp.position.copy(o.p);o.mat.rotation+=o.vr*dt;
+      let L=0;ARCH_X.forEach((ax,i)=>{L+=arches[i].lvl*Math.exp(-Math.abs(o.p.x-ax)/1.3);});L=Math.min(L/1.4,1.2)+drl*Math.exp(-Math.hypot(o.p.x-3,o.p.y-.8,o.p.z)/1.4);
+      const near=Math.min(1,Math.max(0,(cam.position.distanceTo(o.p)-.8)/1.6));
+      o.mat.color.setRGB(.55*L+.3,.62*L+.33,.7*L+.36);
+      o.mat.opacity=.62*Math.min(1,o.age/.04)*Math.pow(1-k,1.6)*near;});
+  }
+
+
+
   // soft contact shadow under the ute
   (function(){const W=1024,H=512,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
     const rr=(w,h,r)=>{const x=(W-w)/2,y=(H-h)/2;g.beginPath();g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath();g.fill();};
@@ -825,14 +896,14 @@ function buildTunnel(T,scene,renderer){
     m.rotation.x=-PI/2;m.position.set(0,0.006,0);m.renderOrder=-1;scene.add(m);})();
 
   const base=new T.Color(TUBE).convertSRGBToLinear();
-  function paint(sg){const v=arches[sg.ai].lvl;sg.core.color.copy(base).multiplyScalar(.04+.96*v);sg.core.opacity=sg.f;sg.glowM.uniforms.uK.value=.3*v*sg.f;}
-  function setArch(i,v){arches[i].lvl=v;segs.forEach(sg=>{if(sg.ai===i)paint(sg);});}
+  function paint(sg){const v=arches[sg.ai].lvl;sg.core.color.copy(base).multiplyScalar(v);sg.core.opacity=sg.f;sg.glowM.uniforms.uK.value=.3*v*sg.f;}
+  function setArch(i,v){arches[i].lvl=v;strips[i].opacity=.32*v;segs.forEach(sg=>{if(sg.ai===i)paint(sg);});}
   // tubes between the camera and the car fade to a ghost, so they never block the panel you're looking at
   function fade(cam,target){const dt=cam.position.distanceTo(target);
     segs.forEach(sg=>{const dc=cam.position.distanceTo(sg.c);const f=Math.min(1,Math.max(.12,(dc-(dt-2.4))/1.6));
       if(Math.abs(f-sg.f)>.01){sg.f=f;paint(sg);}});}
   function setRoom(v){walls.forEach(m=>{if(m.userData.e==null)m.userData.e=m.emissiveIntensity;m.emissiveIntensity=m.userData.e*v;});}
-  return {arches,setArch,setRoom,fade,setSign,count:ARCH_X.length};
+  return {arches,setArch,setRoom,fade,setSign,smokeFrame,smokeBurst,hasSmoke:smoke.length>0,count:ARCH_X.length};
 }
 
 /* ---------- intro sounds (made in code, no music files) ---------- */
@@ -852,6 +923,16 @@ const SFX={ac:null,master:null,muted:false,hum:null,
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22,t+d*.5);g.gain.linearRampToValueAtTime(0,t+d);n.connect(f).connect(g).connect(this.master);n.start(t);},
   shimmer(){if(!this.ac)return;const ac=this.ac,t=ac.currentTime;[523.25,659.25,987.77].forEach((fq,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=fq;
     g.gain.setValueAtTime(0,t+i*.06);g.gain.linearRampToValueAtTime(.05,t+i*.06+.05);g.gain.exponentialRampToValueAtTime(.001,t+i*.06+1.4);o.connect(g).connect(this.master);o.start(t+i*.06);o.stop(t+i*.06+1.5);});},
+  rumble(d){if(!this.ac)return;const ac=this.ac,t=ac.currentTime,n=this.noise(d),f=ac.createBiquadFilter(),g=ac.createGain();f.type='lowpass';f.frequency.value=90;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.5,t+d*.6);g.gain.linearRampToValueAtTime(0,t+d);n.connect(f).connect(g).connect(this.master);n.start(t);
+    const o=ac.createOscillator(),og=ac.createGain();o.type='sine';o.frequency.setValueAtTime(34,t);o.frequency.linearRampToValueAtTime(44,t+d);og.gain.setValueAtTime(0,t);og.gain.linearRampToValueAtTime(.25,t+d*.7);og.gain.linearRampToValueAtTime(0,t+d);o.connect(og).connect(this.master);o.start(t);o.stop(t+d);},
+  boom(){if(!this.ac)return;const ac=this.ac,t=ac.currentTime;
+    const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.setValueAtTime(72,t);o.frequency.exponentialRampToValueAtTime(28,t+1.3);g.gain.setValueAtTime(.8,t);g.gain.exponentialRampToValueAtTime(.001,t+1.5);o.connect(g).connect(this.master);o.start(t);o.stop(t+1.6);
+    const n=this.noise(.6),f=ac.createBiquadFilter(),ng=ac.createGain();f.type='lowpass';f.frequency.setValueAtTime(1200,t);f.frequency.exponentialRampToValueAtTime(120,t+.5);ng.gain.setValueAtTime(.45,t);ng.gain.exponentialRampToValueAtTime(.001,t+.6);n.connect(f).connect(ng).connect(this.master);n.start(t);},
+  blip(){if(!this.ac)return;const ac=this.ac,t=ac.currentTime;[880,1320].forEach((fq,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=fq;
+    g.gain.setValueAtTime(0,t+i*.09);g.gain.linearRampToValueAtTime(.06,t+i*.09+.01);g.gain.exponentialRampToValueAtTime(.001,t+i*.09+.35);o.connect(g).connect(this.master);o.start(t+i*.09);o.stop(t+i*.09+.4);});},
+  blast(){if(!this.ac)return;const ac=this.ac,t=ac.currentTime,n=this.noise(1.3),f=ac.createBiquadFilter(),g=ac.createGain();f.type='highpass';f.frequency.value=900;
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.38,t+.03);g.gain.setValueAtTime(.38,t+.55);g.gain.exponentialRampToValueAtTime(.001,t+1.3);n.connect(f).connect(g).connect(this.master);n.start(t);},
   mute(m){this.muted=m;if(this.master)this.master.gain.value=m?0:.9;}
 };
 
