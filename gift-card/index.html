@@ -347,6 +347,13 @@
   .rv-present .ph.r{right:-1%;transform-origin:90% 100%;animation-name:phR;
     clip-path:polygon(100% 0,10% 0,18% 6%,8% 12%,19% 19%,9% 26%,18% 33%,7% 40%,19% 47%,10% 54%,18% 61%,8% 68%,19% 75%,9% 82%,18% 89%,10% 95%,16% 100%,100% 100%)}
   .rv-shake{animation:rvShake 340ms ease 2}
+  /* Sits where the card will be while it loads. No words - the banner is gone. */
+  #gcSpin{display:none;padding:56px 0 72px;text-align:center}
+  #gcSpin i{display:inline-block;width:34px;height:34px;border-radius:50%;
+    border:3px solid rgba(255,107,26,.2);border-top-color:#ff6b1a;
+    animation:gcSpin .8s linear infinite}
+  @keyframes gcSpin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){#gcSpin i{animation-duration:2.6s}}
   @keyframes rvShake{0%,100%{transform:translateX(0)}
     25%{transform:translateX(-5px) rotate(-.6deg)}75%{transform:translateX(5px) rotate(.6deg)}}
   @keyframes phL{0%{transform:none}25%{transform:translateX(-7%) rotate(-3deg)}
@@ -489,6 +496,7 @@
     <p class="lede" id="pgLede">Set it up with their car, the way they'd want it done. We'll email them the card.</p>
     <div id="notice" style="display:none;margin-top:10px;padding:12px 14px;border-radius:10px;
          background:#2a2118;border-left:3px solid #ff6b1a;color:#e8e8ec;font-size:13.5px;line-height:1.5"></div>
+    <div id="gcSpin"><i></i></div>
   </div>
 
   <!-- 1. their car -->
@@ -2269,6 +2277,12 @@ void main(){
       secs[1].style.display = 'none';   /* shown once the card loads */
     }
     $('load').textContent = 'Loading your car…';
+    spin(true);
+  }
+
+  function spin(on){
+    var el = $('gcSpin');
+    if (el) { el.style.display = on ? 'block' : 'none'; }
   }
 
   /* The car list arrives on its own schedule - wait for it, briefly. */
@@ -2346,6 +2360,7 @@ void main(){
     $('cExp').textContent = card.expires || '';
 
     var secs = document.querySelectorAll('.sec');
+    spin(false);
     if (secs[1]) { secs[1].style.display = ''; dockUp(secs[1]); }
 
     CARD_NOW = card;
@@ -2382,12 +2397,14 @@ void main(){
           setTimeout(function(){ loadCard(attempt + 1); }, 10000);
           return;
         }
+        spin(false);
         notice(esc(msg) + '<br>Give us a call on <b>0488 846 848</b> and we’ll sort it out.');
         $('load').textContent = '';
         var secs = document.querySelectorAll('.sec');
         if (secs[1]) { secs[1].style.display = 'none'; }
       })
       .catch(function (){
+        spin(false);
         notice('We could not reach us just now. Try again in a minute, or call <b>0488 846 848</b>.');
       });
   }
