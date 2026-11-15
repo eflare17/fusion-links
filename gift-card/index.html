@@ -943,7 +943,7 @@ void main(){
   var S = {
     how:'rego', lay:'', film:'vtxCeramic', shadeF:'35%', shadeR:'15%',
     side:'front', paint:'', car:null, val:'job', amount:50, body:'', variant:1, head:'',
-    reveal:'present',
+    reveal:'present', pickedLay:false,
     to:'', from:'', note:'', send:'email', skipCar:false
   };
   var CARS = [], FALLBACK = false;
@@ -1287,7 +1287,10 @@ void main(){
       });
     }
   }
-  segment('lays', function(v){ S.lay = v; S.variant = 1; drawLayout(); });
+  segment('lays', function(v){
+    S.lay = v; S.variant = 1; S.pickedLay = true;
+    drawLayout(); fillReveals();
+  });
   $('head').addEventListener('input', function(){ S.head = this.value; drawLayout(); });
   segment('side', function(v){ S.side = v; fillShades(); });
   segment('sFilm', function(v){ S.film = v; fillShades(); fillValues(); drawCar(); drawValue(); });
@@ -1528,6 +1531,15 @@ void main(){
     setTimeout(function(){ if (rv.parentNode) { rv.parentNode.removeChild(rv); } }, life);
   }
 
+  /* the opening only matters once there is a design to open onto, so it stays
+     out of the way until they have picked one */
+  function showRevealPicker(){
+    var on = S.pickedLay;
+    ['rvLab','rvPick','rvHint'].forEach(function(id){
+      var e = $(id); if (e) { e.style.display = on ? '' : 'none'; }
+    });
+    $('rvPlay').style.display = (on && S.reveal !== 'none') ? '' : 'none';
+  }
   function fillReveals(){
     var h = '';
     for (var i = 0; i < REVEALS.length; i++) {
@@ -1536,7 +1548,7 @@ void main(){
     }
     $('rvPick').innerHTML = h;
     $('rvHint').textContent = revealBlurb(S.reveal);
-    $('rvPlay').style.display = S.reveal === 'none' ? 'none' : '';
+    showRevealPicker();
   }
   $('rvPick').addEventListener('click', function(e){
     var b = e.target.closest ? e.target.closest('.pill') : null;
