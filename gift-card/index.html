@@ -293,6 +293,59 @@
   .card.nocar .stage{display:none}
   .card.nocar .val-n{font-size:46px}
 
+
+  /* ---------- how the card opens ---------- */
+  .card{position:relative}
+  .rv{position:absolute;inset:0;border-radius:inherit;overflow:hidden;z-index:40;pointer-events:none}
+  .rv canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* present: paper splits, ribbon parts, card underneath */
+  .rv-present .pp{position:absolute;top:0;bottom:0;width:50.5%;
+    background:linear-gradient(135deg,#d8452f,#b8301f 40%,#d8452f);
+    box-shadow:inset 0 0 60px rgba(0,0,0,.28)}
+  .rv-present .pp::after{content:'';position:absolute;inset:0;opacity:.5;
+    background-image:radial-gradient(circle at 12px 12px,rgba(255,255,255,.5) 2px,transparent 2.6px);
+    background-size:26px 26px}
+  .rv-present .pl{left:0;animation:rvPL 1.25s .55s cubic-bezier(.5,0,.2,1) forwards}
+  .rv-present .pr{right:0;animation:rvPR 1.25s .55s cubic-bezier(.5,0,.2,1) forwards}
+  .rv-present .rib{position:absolute;top:0;bottom:0;left:50%;width:19px;margin-left:-9.5px;
+    background:linear-gradient(90deg,#c9a227,#f2d774 45%,#c9a227);
+    animation:rvRib .5s .45s ease-in forwards}
+  .rv-present .ribh{position:absolute;left:0;right:0;top:50%;height:19px;margin-top:-9.5px;
+    background:linear-gradient(180deg,#c9a227,#f2d774 45%,#c9a227);
+    animation:rvRib .5s .45s ease-in forwards}
+  .rv-present .bow{position:absolute;left:50%;top:50%;width:76px;height:50px;margin:-25px 0 0 -38px;
+    animation:rvBow .95s cubic-bezier(.3,1.5,.5,1) forwards}
+  @keyframes rvPL{to{transform:translateX(-104%) rotate(-7deg)}}
+  @keyframes rvPR{to{transform:translateX(104%) rotate(7deg)}}
+  @keyframes rvRib{to{opacity:0;transform:scaleX(.2)}}
+  @keyframes rvBow{0%{transform:scale(.3);opacity:0}
+    38%{transform:scale(1.12);opacity:1}
+    58%{transform:scale(1);opacity:1}
+    100%{transform:scale(1.9) translateY(-34px);opacity:0}}
+
+  /* squeegee: frosted glass wiped clear, top to bottom */
+  .rv-squeegee .frost{position:absolute;inset:0;
+    background:rgba(214,226,234,.93);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    animation:rvWipe 2.1s .25s cubic-bezier(.45,0,.3,1) forwards}
+  .rv-squeegee .drip{position:absolute;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,rgba(255,255,255,.95),rgba(176,198,212,.6) 70%);
+    box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  .rv-squeegee .bar{position:absolute;left:-4%;right:-4%;height:13px;top:0;
+    background:linear-gradient(180deg,#2b2b31,#55555f 46%,#1b1b20);
+    border-radius:3px;box-shadow:0 6px 14px rgba(0,0,0,.4);
+    animation:rvBar 2.1s .25s cubic-bezier(.45,0,.3,1) forwards}
+  @keyframes rvWipe{to{clip-path:inset(100% 0 0 0)}}
+  @keyframes rvBar{from{top:-14px}to{top:100%}}
+
+  /* ---------- the opening picker ---------- */
+  .rvpick{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+  .rvpick .pill{padding:9px 13px;font-size:13px}
+  .rvplay{display:block;width:100%;margin-top:9px;padding:11px 14px;border-radius:12px;
+    font-size:13.5px;font-weight:700;background:#1f1f25;border:1px solid #33333b;color:#cfcfd8;cursor:pointer}
+  .rvplay:active{background:#26262e}
+
   /* ---------- the buy flow: one question at a time ---------- */
   .wiz-top{display:flex;align-items:center;gap:10px;margin:0 0 14px}
   .wiz-step{font-size:10.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#7a7a84;white-space:nowrap}
@@ -548,6 +601,10 @@
     </div>
     <div class="vars" id="vars"></div>
     <div class="vlab" id="vlab"></div>
+    <div class="ctl-lab" id="rvLab" style="margin:16px 0 7px;width:auto">How it opens</div>
+    <div class="rvpick" id="rvPick"></div>
+    <div class="hint" id="rvHint"></div>
+    <button type="button" class="rvplay" id="rvPlay">&#9654;&nbsp; See what they&rsquo;ll see</button>
   </div>
 
   <!-- 5. who -->
@@ -669,6 +726,7 @@
   var S = {
     how:'rego', lay:'', film:'vtxCeramic', shadeF:'35%', shadeR:'15%',
     side:'front', paint:'', car:null, val:'job', amount:50, body:'', variant:1, head:'',
+    reveal:'present',
     to:'', from:'', note:'', send:'email', skipCar:false
   };
   var CARS = [], FALLBACK = false;
@@ -1060,6 +1118,128 @@
   });
   $('note').addEventListener('input', function(){ S.note = this.value; drawWho(); });
 
+
+  /* ---------- how the card opens ----------
+     Four choices. The present is the default because it reads instantly as
+     a gift; the squeegee is ours; confetti suits a birthday or a new baby;
+     and some people just want the card. */
+  var REVEALS = [
+    ['present',  'Unwrap a present', 'Paper and ribbon split open to the card.'],
+    ['confetti', 'Confetti burst',   'Confetti falls as the card appears.'],
+    ['squeegee', 'Squeegee wipe',    'Fogged glass wiped clear, the way we do it.'],
+    ['none',     'No animation',     'The card is just there when they open it.']
+  ];
+  function revealName(k){
+    for (var i=0;i<REVEALS.length;i++){ if (REVEALS[i][0] === k) return REVEALS[i][1]; }
+    return '';
+  }
+  function revealBlurb(k){
+    for (var i=0;i<REVEALS.length;i++){ if (REVEALS[i][0] === k) return REVEALS[i][2]; }
+    return '';
+  }
+
+  function playReveal(kind, host){
+    host = host || $('card');
+    if (!host) { return; }
+    var old = host.querySelector('.rv');
+    if (old && old.parentNode) { old.parentNode.removeChild(old); }
+    if (!kind || kind === 'none') { return; }
+
+    var rv = document.createElement('div');
+    rv.className = 'rv rv-' + kind;
+    var life = 2400;
+
+    if (kind === 'present') {
+      rv.innerHTML =
+        '<i class="pp pl"></i><i class="pp pr"></i>' +
+        '<i class="rib"></i><i class="ribh"></i>' +
+        '<svg class="bow" viewBox="0 0 76 50">' +
+          '<path d="M38 25 C22 6 2 8 6 24 C9 36 27 32 38 25Z" fill="#e8c24a"/>' +
+          '<path d="M38 25 C54 6 74 8 70 24 C67 36 49 32 38 25Z" fill="#f2d774"/>' +
+          '<circle cx="38" cy="25" r="8" fill="#c9a227"/>' +
+        '</svg>';
+      life = 2000;
+
+    } else if (kind === 'squeegee') {
+      var frost = document.createElement('div');
+      frost.className = 'frost';
+      var r = 0, h = '';
+      for (var d = 0; d < 46; d++) {
+        r = (d * 9301 + 49297) % 233280 / 233280;
+        var r2 = ((d + 7) * 9301 + 49297) % 233280 / 233280;
+        var r3 = ((d + 13) * 9301 + 49297) % 233280 / 233280;
+        var sz = 3 + r3 * 7;
+        h += '<i class="drip" style="left:' + (r * 96).toFixed(1) + '%;top:' +
+             (r2 * 96).toFixed(1) + '%;width:' + sz.toFixed(1) + 'px;height:' +
+             sz.toFixed(1) + 'px"></i>';
+      }
+      frost.innerHTML = h;
+      rv.appendChild(frost);
+      var bar = document.createElement('i');
+      bar.className = 'bar';
+      rv.appendChild(bar);
+      life = 2600;
+
+    } else if (kind === 'confetti') {
+      var cv = document.createElement('canvas');
+      rv.appendChild(cv);
+      host.appendChild(rv);
+      var w = host.clientWidth, ht = host.clientHeight;
+      cv.width = w; cv.height = ht;
+      var ctx = cv.getContext('2d');
+      var cols = ['#ff6b1a','#f5d06a','#59d8c6','#ff7fa8','#ffffff','#9ad7ff'];
+      var bits = [];
+      for (var i = 0; i < 90; i++) {
+        bits.push({ x: Math.random() * w, y: -20 - Math.random() * ht * .7,
+                    vy: 1.6 + Math.random() * 2.6, vx: (Math.random() - .5) * 1.1,
+                    a: Math.random() * Math.PI, va: (Math.random() - .5) * .22,
+                    w: 4 + Math.random() * 6, h: 2 + Math.random() * 4,
+                    c: cols[(Math.random() * cols.length) | 0] });
+      }
+      var t0 = Date.now();
+      (function tick(){
+        if (!rv.parentNode) { return; }
+        var el = Date.now() - t0;
+        ctx.clearRect(0, 0, w, ht);
+        for (var i = 0; i < bits.length; i++) {
+          var b = bits[i];
+          b.x += b.vx; b.y += b.vy; b.a += b.va;
+          ctx.save();
+          ctx.globalAlpha = el > 1800 ? Math.max(0, 1 - (el - 1800) / 700) : 1;
+          ctx.translate(b.x, b.y); ctx.rotate(b.a);
+          ctx.fillStyle = b.c;
+          ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+          ctx.restore();
+        }
+        if (el < 2500) { requestAnimationFrame(tick); }
+      })();
+      setTimeout(function(){ if (rv.parentNode) { rv.parentNode.removeChild(rv); } }, 2600);
+      return;
+    }
+
+    host.appendChild(rv);
+    setTimeout(function(){ if (rv.parentNode) { rv.parentNode.removeChild(rv); } }, life);
+  }
+
+  function fillReveals(){
+    var h = '';
+    for (var i = 0; i < REVEALS.length; i++) {
+      h += '<button type="button" class="pill' + (S.reveal === REVEALS[i][0] ? ' on' : '') +
+           '" data-v="' + REVEALS[i][0] + '">' + esc(REVEALS[i][1]) + '</button>';
+    }
+    $('rvPick').innerHTML = h;
+    $('rvHint').textContent = revealBlurb(S.reveal);
+    $('rvPlay').style.display = S.reveal === 'none' ? 'none' : '';
+  }
+  $('rvPick').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.pill') : null;
+    if (!b) { return; }
+    S.reveal = b.getAttribute('data-v');
+    fillReveals();
+    playReveal(S.reveal);
+  });
+  $('rvPlay').addEventListener('click', function(){ playReveal(S.reveal); });
+
   /* ---------- cars ---------- */
   function fillCars(){
     var q = ($('q').value || '').toLowerCase().trim(), h = '', n = 0;
@@ -1229,10 +1409,9 @@
       film: FILMS[S.film],
       shadeF: S.shadeF, shadeR: S.shadeR,
       paint: S.paint || '',
-      design: S.lay
-        ? (S.lay + '-' + S.variant +
-           (S.lay === 'custom' && S.head.trim() ? '~' + S.head.trim() : ''))
-        : '',
+      design: (S.lay ? (S.lay + '-' + S.variant) : 'plain-1') +
+        '!' + S.reveal +
+        (S.lay === 'custom' && S.head.trim() ? '~' + S.head.trim() : ''),
       message: S.note.trim()
     };
     var qs = Object.keys(p).map(function(k){
@@ -1393,6 +1572,7 @@
       { q:'Pick a design',
         s:'This is what they see when the card opens.',
         box: whole(secs[3]),
+        enter: function(){ fillReveals(); },
         ok: function(){ return true; } },
 
       { q:'Who is it for?',
@@ -1580,10 +1760,14 @@
 
   function showCard(card){
     var dsn  = String(card.design || '');
-    var dz   = dsn.split('-');
-    S.lay    = dz[0] || '';
-    S.variant = parseInt(dz[1], 10) || 1;
     S.head   = (dsn.split('~')[1] || '');
+    var pre  = dsn.split('~')[0];
+    var rvm  = /!([a-z]+)/.exec(pre);
+    S.reveal = rvm ? rvm[1] : 'none';   /* cards sold before this existed just open */
+    pre      = pre.replace(/!.*$/, '');
+    var dz   = pre.split('-');
+    S.lay    = dz[0] === 'plain' ? '' : (dz[0] || '');
+    S.variant = parseInt(dz[1], 10) || 1;
     S.film   = filmKeyFor(card.film);
     S.shadeF = card.shadeF || S.shadeF;
     S.shadeR = card.shadeR || S.shadeR;
@@ -1603,6 +1787,7 @@
 
     drawLayout(); fillShades(); drawValue(); drawWho();
     $('ctaBook').setAttribute('href', bookingLink(card));
+    setTimeout(function(){ playReveal(S.reveal); }, 260);
 
     whenCars(function (ok){
       var c = ok && card.carSlug ? bySlug(card.carSlug) : null;
