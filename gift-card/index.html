@@ -1534,10 +1534,14 @@ void main(){
     rv.appendChild(cv);
     host.appendChild(rv);
 
+    /* The beads are laid out from the aspect ratio, so this is fixed once and
+       never updated: re-sizing the canvas must not re-roll the water. */
+    var asp0 = cv.width / Math.max(cv.height, 1);
     var END = 5.6, t0 = performance.now();
     var wipeAt = hold ? 0 : t0;          /* 0 = parked, drops running, no blade */
     gl.viewport(0, 0, cv.width, cv.height);
 
+    /* Sharpen to the card's new size. asp0 is left alone on purpose. */
     function fit(){
       var w2 = host.clientWidth, h2 = host.clientHeight;
       if (!w2 || !h2) { return; }
@@ -1550,7 +1554,7 @@ void main(){
       var tw = wipeAt ? (now - wipeAt) / 1000 : 0;
       gl.uniform1f(uT, (now - t0) / 1000);
       gl.uniform1f(uW, tw);
-      gl.uniform2f(uRes, cv.width, cv.height);
+      gl.uniform2f(uRes, asp0, 1.0);   /* the shader only ever wants the ratio */
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       if (!wipeAt || tw < END) { gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(loop); }
@@ -2444,26 +2448,28 @@ void main(){
 
     var secs = document.querySelectorAll('.sec');
     $('card').classList.remove('fogged');   /* real content now, fog still over it */
-    if (FOGGL) { setTimeout(function(){ if (FOGGL) { FOGGL.fit(); } }, 30); }
     if (secs[1]) { secs[1].style.display = ''; dockUp(secs[1]); }
 
     CARD_NOW = card;
     drawLayout(); fillShades(); drawValue(); drawWho();
     $('ctaBook').setAttribute('href', bookingLink(card));
     drawUseOptions();
-    setTimeout(function(){
-      if (S.reveal === 'squeegee' && FOGGL) {
-        /* the glass already on screen IS the reveal - just let the blade go,
-           so there is no moment where the picture changes */
-        $('card').classList.remove('fogged');
-        FOGGL.play(); FOGGL = null;
-        return;
-      }
-      /* this card opens another way, so the glass fades off as that starts */
-      if (FOGGL) { FOGGL.fade(); FOGGL = null; }
-      fogOff(/present|lid/.test(S.reveal));
-      playReveal(S.reveal);
-    }, 260);
+    if (S.reveal === 'squeegee' && FOGGL) {
+      /* The glass already on screen IS the reveal. The card has just changed
+         shape behind it, so re-size the glass and start the blade in the same
+         frame - one change, under motion, instead of a still cut beforehand. */
+      requestAnimationFrame(function(){
+        if (!FOGGL) { return; }
+        FOGGL.fit(); FOGGL.play(); FOGGL = null;
+      });
+    } else {
+      setTimeout(function(){
+        /* this card opens another way, so the glass fades off as that starts */
+        if (FOGGL) { FOGGL.fade(); FOGGL = null; }
+        fogOff(/present|lid/.test(S.reveal));
+        playReveal(S.reveal);
+      }, 260);
+    }
 
     whenCars(function (ok){
       var c = ok && card.carSlug ? bySlug(card.carSlug) : null;
