@@ -761,6 +761,9 @@
 precision highp float;
 uniform sampler2D uTex;
 uniform float uT;
+/* the wipe runs on its own clock, so the glass can sit there fogged,
+   with the drops still running, until the card is ready for the blade */
+uniform float uW;
 uniform vec2 uRes;
 varying vec2 vUv;
 
@@ -865,14 +868,15 @@ void main(){
 
   /* two passes: top half left to right, bottom half back the other way */
   float inA = step(uv.y, 0.52);
-  float pA = (t - 0.55) / 1.70, pB = (t - 2.35) / 1.70;
+  float tw = uW;
+  float pA = (tw - 0.55) / 1.70, pB = (tw - 2.35) / 1.70;
   float xa = mix(-0.18, 1.18, pA) + (uv.y - 0.26) * 0.10;
   float xb = mix(1.18, -0.18, pB) + (uv.y - 0.76) * 0.10;
   float dist = mix(xb - uv.x, uv.x - xa, inA);          /* > 0 still wet, < 0 wiped */
   float wet = step(0.0, dist);
   float passed = mix(2.35 + 1.70 * (1.18 + (uv.y - 0.76) * 0.10 - uv.x) / 1.36,
                      0.55 + 1.70 * (uv.x - (uv.y - 0.26) * 0.10 + 0.18) / 1.36, inA);
-  float since = max(t - passed, 0.0);
+  float since = max(tw - passed, 0.0);
 
   /* as the squeegee closes in, the drops just ahead of it are dragged into the blade */
   float sgn = mix(-1.0, 1.0, inA);
@@ -1455,7 +1459,10 @@ void main(){
      them. It needs a picture to bend, and the browser will not let us photograph
      the live card, so we hand it the car - which is the glass anyway - sitting on
      the card's own colour. */
-  function squeegeeGL(rv, host){
+  /* hold: build the pane and leave it fogged, blade parked off the glass,
+     until play() is called. That way the thing on screen while the card
+     loads is the reveal itself, not a look-alike. */
+  function squeegeeGL(rv, host, hold){
     var frag = document.getElementById('fsSq');
     if (!frag) { return false; }
     var cv = document.createElement('canvas');
@@ -1490,49 +1497,76 @@ void main(){
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     var uT = gl.getUniformLocation(prog, 'uT'), uRes = gl.getUniformLocation(prog, 'uRes');
+    var uW = gl.getUniformLocation(prog, 'uW');
 
-    /* what the water bends: the card's colour, with the car laid in where it sits */
-    var tc = document.createElement('canvas'); tc.width = tc.height = 1024;
-    var tx = tc.getContext('2d');
-    var cs = getComputedStyle(host);
-    tx.fillStyle = cs.getPropertyValue('--panel').trim() || cs.backgroundColor || '#1b1b1f';
-    tx.fillRect(0, 0, 1024, 1024);
-    var pic = host.querySelector('.stage canvas, .stage img');
-    if (pic && (pic.width || pic.naturalWidth)) {
-      var hr = host.getBoundingClientRect(), pr = pic.getBoundingClientRect();
-      try {
-        tx.drawImage(pic,
-          (pr.left - hr.left) / w * 1024, (pr.top - hr.top) / h * 1024,
-          pr.width / w * 1024, pr.height / h * 1024);
-      } catch (e) {}
-    }
+    /* what the water bends: the card's colour, with the car laid in where it sits.
+       Built again on play(), by which time the real card is in place. */
     var tex = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    try {
-      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, tc);
-    } catch (e) { return false; }
-    gl.generateMipmap(gl.TEXTURE_2D);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    function paintTex(){
+      var tc = document.createElement('canvas'); tc.width = tc.height = 1024;
+      var tx = tc.getContext('2d');
+      var cs = getComputedStyle(host);
+      var cw = host.clientWidth || w, chh = host.clientHeight || h;
+      tx.fillStyle = cs.getPropertyValue('--panel').trim() || cs.backgroundColor || '#1b1b1f';
+      tx.fillRect(0, 0, 1024, 1024);
+      var pic = host.querySelector('.stage canvas, .stage img');
+      if (pic && (pic.width || pic.naturalWidth)) {
+        var hr = host.getBoundingClientRect(), pr = pic.getBoundingClientRect();
+        try {
+          tx.drawImage(pic,
+            (pr.left - hr.left) / cw * 1024, (pr.top - hr.top) / chh * 1024,
+            pr.width / cw * 1024, pr.height / chh * 1024);
+        } catch (e) {}
+      }
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      try {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, tc);
+      } catch (e) { return false; }
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return true;
+    }
+    if (!paintTex()) { return false; }
 
     rv.appendChild(cv);
     host.appendChild(rv);
 
     var END = 5.6, t0 = performance.now();
+    var wipeAt = hold ? 0 : t0;          /* 0 = parked, drops running, no blade */
     gl.viewport(0, 0, cv.width, cv.height);
+
+    function fit(){
+      var w2 = host.clientWidth, h2 = host.clientHeight;
+      if (!w2 || !h2) { return; }
+      cv.width = Math.round(w2 * dpr); cv.height = Math.round(h2 * dpr);
+      gl.viewport(0, 0, cv.width, cv.height);
+    }
+
     (function loop(now){
       if (!rv.parentNode) { return; }
-      var t = (now - t0) / 1000;
-      gl.uniform1f(uT, t);
+      var tw = wipeAt ? (now - wipeAt) / 1000 : 0;
+      gl.uniform1f(uT, (now - t0) / 1000);
+      gl.uniform1f(uW, tw);
       gl.uniform2f(uRes, cv.width, cv.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
-      if (t < END) { gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(loop); }
+      if (!wipeAt || tw < END) { gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(loop); }
       else if (rv.parentNode) { rv.parentNode.removeChild(rv); }
     })(t0);
-    return true;
+
+    return {
+      /* the card is in now: resize to it, re-read it, let the blade go */
+      play: function (){ fit(); paintTex(); wipeAt = performance.now(); },
+      /* this card opens some other way, so take the glass off gently */
+      fade: function (){
+        rv.style.transition = 'opacity .35s ease';
+        rv.style.opacity = '0';
+        setTimeout(function (){ if (rv.parentNode) { rv.parentNode.removeChild(rv); } }, 400);
+      }
+    };
   }
 
   function playReveal(kind, host){
@@ -2284,10 +2318,20 @@ void main(){
     fogOn();
   }
 
-  /* The fogged pane that stands in for the card until it lands. */
+  var FOGGL = null;   /* the parked squeegee pane, when WebGL is available */
+
+  /* The fogged pane that stands in for the card until it lands. It is the
+     squeegee's own glass, held before the blade runs, so nothing changes
+     look when the card arrives - the blade simply starts moving. */
   function fogOn(){
     var card = $('card');
-    if (!card || card.querySelector('.fog')) { return; }
+    if (!card || card.querySelector('.fog') || card.querySelector('.rv')) { return; }
+
+    var pane = document.createElement('div');
+    pane.className = 'rv rv-squeegee';
+    FOGGL = squeegeeGL(pane, card, true);
+    if (FOGGL) { return; }
+    /* no WebGL on this phone: a plain frosted pane, same as the wipe fallback */
     var f = document.createElement('div'), h = '', i, r;
     f.className = 'fog';
     for (i = 0; i < 56; i++) {
@@ -2312,6 +2356,7 @@ void main(){
     var card = $('card');
     if (!card) { return; }
     card.classList.remove('fogged');
+    if (FOGGL) { if (now) { FOGGL.fade(); } FOGGL = null; }
     var f = card.querySelector('.fog');
     if (!f) { return; }
     if (now) { if (f.parentNode) { f.parentNode.removeChild(f); } return; }
@@ -2402,10 +2447,16 @@ void main(){
     $('ctaBook').setAttribute('href', bookingLink(card));
     drawUseOptions();
     setTimeout(function(){
-      /* squeegee, paper and lid all cover the card themselves, so the fog can
-         go the instant they start - the squeegee's own frost is the same glass.
-         Confetti and no-animation need it faded instead. */
-      fogOff(/squeegee|present|lid/.test(S.reveal));
+      if (S.reveal === 'squeegee' && FOGGL) {
+        /* the glass already on screen IS the reveal - just let the blade go,
+           so there is no moment where the picture changes */
+        $('card').classList.remove('fogged');
+        FOGGL.play(); FOGGL = null;
+        return;
+      }
+      /* this card opens another way, so the glass fades off as that starts */
+      if (FOGGL) { FOGGL.fade(); FOGGL = null; }
+      fogOff(/present|lid/.test(S.reveal));
       playReveal(S.reveal);
     }, 260);
 
