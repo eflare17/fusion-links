@@ -1232,6 +1232,7 @@
     var sideLab = secs[1].querySelector('.ctl-lab');
     var sideSum = secs[1].querySelector('.side-sum');
     var buyBox  = $('buy').parentNode;
+    var bodyRow = $('bodyrow');
 
     var STEPS = [
       { q:'What kind of card?',
@@ -1248,8 +1249,8 @@
              ? 'Pop in their rego, or search the make and model.'
              : 'Nice touch if you know it. Skip it and the design fills the card instead.'; },
         box: (function(){
-          var b = whole(secs[0]), br = $('bodyrow');
-          if (br) { b.appendChild(br); }
+          var b = whole(secs[0]);
+          if (bodyRow) { b.appendChild(bodyRow); }
           return b;
         })(),
         enter: function(){ $('carSkip').style.display = S.val === 'job' ? 'none' : ''; },
