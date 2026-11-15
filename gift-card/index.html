@@ -325,6 +325,8 @@
   .btn.btn-top{display:block;width:100%;text-align:center;cursor:pointer}
   .btn.btn-top b{display:block;font-size:14.5px;font-weight:800}
   .btn.btn-top span{display:block;font-size:12px;font-weight:600;opacity:.7;margin-top:2px}
+  .topother{display:block;width:100%;margin-top:9px;padding:7px;border:0;background:none;
+    color:var(--dim);font-size:12.5px;font-weight:600;text-decoration:underline;cursor:pointer}
 
   /* ---------- how the card opens ---------- */
   .card{position:relative}
@@ -591,6 +593,7 @@
         <div class="panel-h">Top it up</div>
         <p class="panel-p" id="topWhy"></p>
         <div class="pills" id="topAmts"></div>
+        <button type="button" class="topother" id="topOther">or add a different amount</button>
         <div class="hint" id="topHint"></div>
         <button type="button" class="btn btn-1" id="topGo">Pay and add it on</button>
         <button type="button" class="panel-x" id="topCancel">Not now</button>
@@ -1676,16 +1679,36 @@ void main(){
       $('topWhy').textContent = 'Put more on the card and it is worth more. Your $' +
         t.have + ' stays exactly where it is.';
     }
-    var amts = t.add > 0 ? [t.add, 50, 100, 200] : [50, 100, 200];
-    var seen = {}, h = '';
-    amts.forEach(function(a, i){
+    /* One number that means something: what it takes to cover the whole job.
+       Anything between leaves them part-paid, which is not much of a gift, so
+       the other amounts sit behind a link for the odd person who wants one. */
+    TOP_OPEN = false;
+    drawTopAmounts(t);
+  }
+
+  var TOP_OPEN = false;
+  function drawTopAmounts(t){
+    t = t || topUpTarget();
+    var amts = [], seen = {};
+    if (t.add > 0) { amts.push([t.add, 'make it a full tint']); }
+    if (TOP_OPEN || t.add <= 0) {
+      [50, 100, 200].forEach(function(a){ amts.push([a, '']); });
+    }
+    var h = '';
+    amts.forEach(function(pair, i){
+      var a = pair[0];
       if (!a || seen[a]) { return; }
       seen[a] = 1;
       h += '<button type="button" class="pill' + (i === 0 ? ' on' : '') + '" data-v="' + a + '">$' + a +
-           (i === 0 && t.add > 0 ? ' (full tint)' : '') + '</button>';
+           (pair[1] ? ' \u2014 ' + pair[1] : '') + '</button>';
     });
     $('topAmts').innerHTML = h;
+    $('topOther').style.display = (TOP_OPEN || t.add <= 0) ? 'none' : '';
   }
+  $('topOther').addEventListener('click', function(){
+    TOP_OPEN = true;
+    drawTopAmounts();
+  });
 
   /* --- gift it to someone else --- */
   function panel(which){
