@@ -638,6 +638,194 @@
 
 </div>
 
+<script id="fsSq" type="x-shader/x-fragment">
+precision highp float;
+uniform sampler2D uTex;
+uniform float uT;
+uniform vec2 uRes;
+varying vec2 vUv;
+
+float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float vnoise(vec2 p){
+  vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x),
+             mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+/* which drop owns this pixel, and where on its dome we are (0 centre, 1 edge) */
+float gM;
+vec2 gN;
+
+/* beads that sit on the glass: xy = how far they bend the picture, z = coverage */
+vec3 beads(vec2 p, float cell, float t){
+  vec2 g = p / cell; vec2 id = floor(g); vec2 f = fract(g) - 0.5;
+  float n = h21(id), n2 = h21(id + 19.7);
+  vec2 c = vec2(n - 0.5, n2 - 0.5) * 0.55;
+  float rad = mix(0.10, 0.30, h21(id + 3.1));
+  /* these stay put for the whole reveal: nothing fades in or out */
+  if (h21(id + 11.3) < 0.45) return vec3(0.0);   /* leave nearly half the spots bare */
+  vec2 d = f - c;
+  float m = smoothstep(rad, rad * 0.55, length(d));
+  if (m > gM) { gM = m; gN = d / max(rad, 0.0001); }
+  return vec3(d * cell * m, m);
+}
+
+/* drops that glide steadily down the glass - no stopping, no trail */
+vec3 runners(vec2 p, float t){
+  vec2 cs = vec2(0.085, 0.5);
+  float col = floor(p.x / cs.x);
+  float sp = 0.09 + 0.13 * h21(vec2(col, 1.7));
+  vec2 q = vec2(p.x, p.y - t * sp + h21(vec2(col, 9.1)) * 3.0);
+  vec2 g = q / cs; vec2 id = floor(g); vec2 f = fract(g);
+  float n = h21(id + 0.37);
+  if (n < 0.42) return vec3(0.0);
+  float wander = sin(q.y * 38.0 + n * 6.28) * 0.012;
+  vec2 hc = vec2((0.25 + n * 0.5) * cs.x + wander, 0.72 * cs.y);
+  vec2 d = f * cs - hc;
+  d.x *= 1.06;                                 /* a touch taller than wide, */
+  if (d.y < 0.0) d.y *= 0.82;                  /* and slightly heavier at the bottom */
+  float R = 0.020 + 0.013 * h21(id + 5.0);
+  float m = smoothstep(R, R * 0.8, length(d));
+  if (m > gM) { gM = m; gN = d / R; }
+  return vec3(d * m, m);
+}
+
+/* How much extra water the pool is carrying at this height: every drop the blade
+   has just reached is sucked in and makes the pool bulge where it went in. A big
+   drop makes a big bulge, which then spreads along the blade and settles. */
+float swallowed(vec2 uv, float asp, float t, float sgn, float xfront){
+  float vuv = 1.36 / 1.70;
+  float acc = 0.0;
+  /* the still beads */
+  float cell = 0.055;
+  float cx = floor(xfront * asp / cell), cy = floor(uv.y / cell);
+  for (int i = 0; i < 8; i++) {
+    for (int j = -1; j <= 1; j++) {
+      vec2 id = vec2(cx - sgn * float(i), cy + float(j));
+      if (h21(id + 11.3) < 0.45) continue;
+      float n = h21(id), n2 = h21(id + 19.7);
+      vec2 ctr = (id + 0.5 + vec2(n - 0.5, n2 - 0.5) * 0.55) * cell;
+      float rad = mix(0.10, 0.30, h21(id + 3.1)) * cell;
+      float tau = ((xfront - ctr.x / asp) * sgn + 0.03) / vuv;
+      if (tau <= 0.0) continue;
+      float sig = rad * 1.25 + 0.012 * tau;
+      float dy = uv.y - ctr.y;
+      acc += rad * 2.4 * smoothstep(0.0, 0.10, tau) * exp(-tau * 2.6) * exp(-dy * dy / (sig * sig));
+    }
+  }
+  /* the big running drops */
+  vec2 cs = vec2(0.085, 0.5);
+  float rc = floor(xfront * asp / cs.x);
+  for (int i = 0; i < 6; i++) {
+    float col = rc - sgn * float(i);
+    float sp = 0.09 + 0.13 * h21(vec2(col, 1.7));
+    float shift = t * sp - h21(vec2(col, 9.1)) * 3.0;
+    float row = floor((uv.y - shift) / cs.y);
+    for (int j = -1; j <= 1; j++) {
+      vec2 id = vec2(col, row + float(j));
+      float n = h21(id + 0.37);
+      if (n < 0.42) continue;
+      float qy = (id.y + 0.72) * cs.y;
+      float hx = (col + 0.25 + n * 0.5) * cs.x + sin(qy * 38.0 + n * 6.28) * 0.012;
+      float R = 0.020 + 0.013 * h21(id + 5.0);
+      float tau = ((xfront - hx / asp) * sgn + 0.03) / vuv;
+      if (tau <= 0.0) continue;
+      float sig = R * 1.3 + 0.012 * tau;
+      float dy = uv.y - (qy + shift);
+      acc += R * 3.4 * smoothstep(0.0, 0.10, tau) * exp(-tau * 2.2) * exp(-dy * dy / (sig * sig));
+    }
+  }
+  return acc;
+}
+
+void main(){
+  vec2 uv = vUv;
+  float asp = uRes.x / uRes.y;
+  vec2 p = vec2(uv.x * asp, uv.y);
+  float t = uT;
+
+  /* two passes: top half left to right, bottom half back the other way */
+  float inA = step(uv.y, 0.52);
+  float pA = (t - 0.55) / 1.70, pB = (t - 2.35) / 1.70;
+  float xa = mix(-0.18, 1.18, pA) + (uv.y - 0.26) * 0.10;
+  float xb = mix(1.18, -0.18, pB) + (uv.y - 0.76) * 0.10;
+  float dist = mix(xb - uv.x, uv.x - xa, inA);          /* > 0 still wet, < 0 wiped */
+  float wet = step(0.0, dist);
+  float passed = mix(2.35 + 1.70 * (1.18 + (uv.y - 0.76) * 0.10 - uv.x) / 1.36,
+                     0.55 + 1.70 * (uv.x - (uv.y - 0.26) * 0.10 + 0.18) / 1.36, inA);
+  float since = max(t - passed, 0.0);
+
+  /* as the squeegee closes in, the drops just ahead of it are dragged into the blade */
+  float sgn = mix(-1.0, 1.0, inA);
+  float prog = clamp(mix(pB, pA, inA), 0.0, 1.0);
+  float near = smoothstep(0.11, 0.0, dist) * wet;
+  vec2 pp = p;   /* drops stay put until the blade wipes over them */
+
+  /* the shadow each drop throws on the glass, down and to the right of it */
+  vec2 so = vec2(0.007, 0.010);
+  float shd = max(beads(pp - so, 0.055, t).z, runners(pp - so, t).z);
+
+  /* water */
+  gM = 0.0; gN = vec2(0.0);
+  vec3 b1 = beads(pp, 0.055, t);
+  vec3 b2 = beads(pp * 1.7 + 3.3, 0.055, t * 1.3);
+  vec3 rn = runners(pp, t);
+  vec2 off = b1.xy + b2.xy / 1.7 + rn.xy;
+  float m = max(max(b1.z, b2.z * 0.9), rn.z);
+
+  float foam = vnoise(p * 26.0 + t * 0.6) * 0.6 + vnoise(p * 61.0 - t * 0.4) * 0.4;
+  vec3 blur = texture2D(uTex, uv + (foam - 0.5) * 0.012, 4.6).rgb;
+  vec3 film = mix(blur, vec3(0.78, 0.85, 0.92), 0.34 + 0.22 * foam);
+
+  film *= 1.0 - shd * (1.0 - m) * 0.30;
+
+  /* each bead is a little dome: it flips and squeezes what's behind it, catches a
+     hard glint on the lit side, glows on the far side and goes dark round the rim */
+  float r = clamp(length(gN), 0.0, 1.0);
+  float hgt = sqrt(1.0 - r * r);
+  vec3 sharp = texture2D(uTex, uv - off * (5.0 + 5.0 * r * r), 1.0).rgb;
+  float spec = smoothstep(0.30, 0.06, length(gN - vec2(-0.40, -0.46)));
+  float caus = smoothstep(0.35, 0.95, dot(gN, vec2(0.55, 0.72))) * smoothstep(1.0, 0.7, r) * 0.30;
+  float rim = smoothstep(0.55, 1.0, r);
+  vec3 dropc = sharp * (0.72 + 0.42 * hgt) * (1.0 - rim * 0.38) + caus + spec * 0.85;
+
+  vec3 col = mix(film, dropc, smoothstep(0.15, 0.7, m));
+  float a = wet;
+
+  /* wiped side: a wet shine, faint streaks and the odd drop the blade missed */
+  float dry = 1.0 - wet;
+  float sheen = dry * exp(-since * 3.2) * 0.28;
+  float streak = dry * exp(-since * 1.6) * smoothstep(0.72, 0.9, vnoise(vec2(uv.y * 140.0, uv.x * 2.0))) * 0.22;
+  float left = dry * b1.z * step(0.86, h21(floor(p / 0.055) + 2.0)) * (1.0 - smoothstep(0.3, 1.3, since));
+  vec3 cc = mix(vec3(1.0), dropc, left);
+  float ca = max(clamp(sheen + streak, 0.0, 1.0), left * 0.95);
+  col = mix(cc, col, wet);
+  a = mix(ca, 1.0, wet);
+
+  /* the squeegee itself: rubber edge, metal channel, orange handle */
+  float yc = mix(0.76, 0.26, inA);
+  float k = (dist + 0.028) / 0.034;
+  if (k > 0.0 && k < 1.0) {
+    float sh = smoothstep(0.0, 0.5, k) * smoothstep(1.0, 0.5, k);
+    col = mix(vec3(0.04), vec3(0.30, 0.31, 0.34), sh) + smoothstep(0.06, 0.0, abs(k - 0.5)) * 0.25;
+    a = 1.0;
+  }
+  float ch = (dist - 0.006) / 0.034;
+  if (ch > 0.0 && ch < 1.0) {
+    col = mix(vec3(0.45, 0.47, 0.52), vec3(0.88, 0.90, 0.94), smoothstep(0.0, 0.5, ch) * smoothstep(1.0, 0.5, ch));
+    a = 1.0;
+  }
+  float hx = dist * asp, hy = uv.y - yc;
+  float sd = length(vec2(hx - clamp(hx, 0.05, 0.22), hy)) - 0.03;
+  if (sd < 0.0 && abs(hy) < 0.2) {
+    col = mix(vec3(0.78, 0.30, 0.05), vec3(1.0, 0.50, 0.16), smoothstep(0.03, -0.03, hy + 0.012));
+    col += smoothstep(0.006, 0.0, abs(hy + 0.014)) * 0.25;
+    a = 1.0;
+  }
+
+  gl_FragColor = vec4(col * a, a);
+}
+</script>
 <script>
 (function(){
 
@@ -1138,6 +1326,91 @@
     return '';
   }
 
+
+  /* The squeegee we built: real water on glass, the drops bending what is behind
+     them. It needs a picture to bend, and the browser will not let us photograph
+     the live card, so we hand it the car - which is the glass anyway - sitting on
+     the card's own colour. */
+  function squeegeeGL(rv, host){
+    var frag = document.getElementById('fsSq');
+    if (!frag) { return false; }
+    var cv = document.createElement('canvas');
+    var gl = cv.getContext('webgl', { premultipliedAlpha: true, alpha: true })
+          || cv.getContext('experimental-webgl', { premultipliedAlpha: true, alpha: true });
+    if (!gl) { return false; }
+
+    var w = host.clientWidth, h = host.clientHeight;
+    if (!w || !h) { return false; }
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    cv.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
+
+    function sh(type, srcTxt){
+      var o = gl.createShader(type);
+      gl.shaderSource(o, srcTxt); gl.compileShader(o);
+      return gl.getShaderParameter(o, gl.COMPILE_STATUS) ? o : null;
+    }
+    var vs = sh(gl.VERTEX_SHADER,
+      'attribute vec2 a;varying vec2 vUv;void main(){vUv=vec2(a.x*.5+.5,.5-a.y*.5);gl_Position=vec4(a,0.,1.);}');
+    var fs = sh(gl.FRAGMENT_SHADER, frag.textContent);
+    if (!vs || !fs) { return false; }
+    var prog = gl.createProgram();
+    gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { return false; }
+    gl.useProgram(prog);
+
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    var loc = gl.getAttribLocation(prog, 'a');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    var uT = gl.getUniformLocation(prog, 'uT'), uRes = gl.getUniformLocation(prog, 'uRes');
+
+    /* what the water bends: the card's colour, with the car laid in where it sits */
+    var tc = document.createElement('canvas'); tc.width = tc.height = 1024;
+    var tx = tc.getContext('2d');
+    var cs = getComputedStyle(host);
+    tx.fillStyle = cs.getPropertyValue('--panel').trim() || cs.backgroundColor || '#1b1b1f';
+    tx.fillRect(0, 0, 1024, 1024);
+    var pic = host.querySelector('.stage canvas, .stage img');
+    if (pic && (pic.width || pic.naturalWidth)) {
+      var hr = host.getBoundingClientRect(), pr = pic.getBoundingClientRect();
+      try {
+        tx.drawImage(pic,
+          (pr.left - hr.left) / w * 1024, (pr.top - hr.top) / h * 1024,
+          pr.width / w * 1024, pr.height / h * 1024);
+      } catch (e) {}
+    }
+    var tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    try {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, tc);
+    } catch (e) { return false; }
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    rv.appendChild(cv);
+    host.appendChild(rv);
+
+    var END = 5.6, t0 = performance.now();
+    gl.viewport(0, 0, cv.width, cv.height);
+    (function loop(now){
+      if (!rv.parentNode) { return; }
+      var t = (now - t0) / 1000;
+      gl.uniform1f(uT, t);
+      gl.uniform2f(uRes, cv.width, cv.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (t < END) { gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); requestAnimationFrame(loop); }
+      else if (rv.parentNode) { rv.parentNode.removeChild(rv); }
+    })(t0);
+    return true;
+  }
+
   function playReveal(kind, host){
     host = host || $('card');
     if (!host) { return; }
@@ -1161,6 +1434,8 @@
       life = 2000;
 
     } else if (kind === 'squeegee') {
+      if (squeegeeGL(rv, host)) { return; }
+      /* no WebGL on this phone: a plain wipe rather than nothing */
       var frost = document.createElement('div');
       frost.className = 'frost';
       var r = 0, h = '';
