@@ -294,6 +294,21 @@
   .card.nocar .val-n{font-size:46px}
 
 
+  /* ---------- using a card: top it up, or pass it on ---------- */
+  .btn.btn-up{display:block;width:100%;text-align:center;background:var(--accent);
+    color:var(--ink);border:0;cursor:pointer;padding:12px 14px;border-radius:12px;margin-top:9px}
+  .btn.btn-up b{display:block;font-size:15.5px;font-weight:800}
+  .btn.btn-up span{display:block;font-size:12.5px;font-weight:600;opacity:.8;margin-top:2px}
+  .panel{display:none;margin-top:12px;padding:14px;border-radius:13px;
+    background:var(--panel);border:1px solid var(--line)}
+  .panel.on{display:block}
+  .panel-h{font-size:15.5px;font-weight:800;color:var(--text);margin-bottom:5px}
+  .panel-p{font-size:13px;line-height:1.5;color:var(--dim);margin:0 0 11px}
+  .panel .fld{margin-bottom:8px}
+  .panel .tabs{margin-bottom:8px}
+  .panel-x{display:block;width:100%;margin-top:8px;padding:9px;border:0;background:none;
+    color:var(--dim);font-size:13px;font-weight:600;cursor:pointer}
+
   /* ---------- how the card opens ---------- */
   .card{position:relative}
   .rv{position:absolute;inset:0;border-radius:inherit;overflow:hidden;z-index:40;pointer-events:none}
@@ -519,8 +534,38 @@
 
       <div class="cta">
         <a class="btn btn-1" id="ctaBook" href="#">Book my car in</a>
+        <button type="button" class="btn btn-up" id="ctaTop" style="display:none">
+          <b id="topBig">Make it a full tint</b><span id="topSub"></span>
+        </button>
+        <button type="button" class="btn btn-2" id="ctaPass" style="display:none">Pass it on to someone</button>
         <a class="btn btn-2" id="ctaCall" href="tel:0488846848">Call 0488 846 848</a>
         <a class="change" id="ctaChange" href="#">Not your car, or wrong colour? Change it</a>
+      </div>
+
+      <div class="panel" id="passPanel">
+        <div class="panel-h">Pass it on</div>
+        <p class="panel-p">Keep the card, put their name on it. Same card, same number, same date to use it by.</p>
+        <input class="fld" id="pTo" type="text" placeholder="Their name" autocomplete="off">
+        <input class="fld" id="pFrom" type="text" placeholder="Your name" autocomplete="off">
+        <div class="tabs" id="pSend">
+          <button type="button" class="pill on" data-v="email">Email it</button>
+          <button type="button" class="pill" data-v="sms">Text it</button>
+        </div>
+        <input class="fld" id="pEmail" type="email" placeholder="Their email" autocomplete="off">
+        <input class="fld" id="pMob" type="tel" placeholder="Their mobile" autocomplete="off" style="display:none">
+        <input class="fld" id="pMsg" type="text" maxlength="200" placeholder="A note, if you like" autocomplete="off">
+        <div class="hint" id="pHint"></div>
+        <button type="button" class="btn btn-1" id="pGo">Send it to them</button>
+        <button type="button" class="panel-x" id="pCancel">Not now</button>
+      </div>
+
+      <div class="panel" id="topPanel">
+        <div class="panel-h">Top it up</div>
+        <p class="panel-p" id="topWhy"></p>
+        <div class="pills" id="topAmts"></div>
+        <div class="hint" id="topHint"></div>
+        <button type="button" class="btn btn-1" id="topGo">Pay and add it on</button>
+        <button type="button" class="panel-x" id="topCancel">Not now</button>
       </div>
 
       <div class="foot">
@@ -1560,6 +1605,138 @@ void main(){
   });
   $('rvPlay').addEventListener('click', function(){ playReveal(S.reveal); });
 
+
+  /* ---------- using a card you have been given ----------
+     Three ways out of a card: book it in, put more on it, or hand it to
+     someone else. The money side is only ever worked out by the server - the
+     page asks, it never decides. */
+  var CARD_NOW = null;     /* the card as the server last described it */
+
+  function cardKeys(){
+    return { gc: GIFT.code, gs: GIFT.sig };
+  }
+  function api(action, params){
+    var p = cardKeys();
+    Object.keys(params || {}).forEach(function(k){ p[k] = params[k]; });
+    var qs = Object.keys(p).map(function(k){
+      return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
+    }).join('&');
+    return fetch(BOOK_API + '?action=' + action + '&' + qs, { credentials:'omit' })
+      .then(function(r){ return r.json(); });
+  }
+
+  /* what it would cost to make this card cover the whole job on its car */
+  function topUpTarget(){
+    var have = Number(CARD_NOW && CARD_NOW.amount) || 0;
+    var full = priceFor(S.body || guessBody(), S.film);
+    return { have: have, full: full, add: Math.max(0, full - have) };
+  }
+
+  function drawUseOptions(){
+    if (!CARD_NOW || CARD_NOW.kind !== 'amount') { return; }
+    $('ctaPass').style.display = '';
+    var t = topUpTarget();
+    if (t.add > 0 && (S.car || FALLBACK)) {
+      $('ctaTop').style.display = '';
+      $('topBig').textContent = 'Add $' + t.add + ' and make it a full tint';
+      $('topSub').textContent = 'A whole ' + esc(carName()) + ' job is $' + t.full +
+                               ' — you have $' + t.have + ' on here';
+      $('topWhy').textContent = 'Your $' + t.have + ' stays on the card. Pay the $' + t.add +
+        ' difference and it covers the whole job, or put on however much you like.';
+    } else {
+      $('ctaTop').style.display = 'none';
+      $('topWhy').textContent = 'Put more on the card and it is worth more. Your $' +
+        t.have + ' stays exactly where it is.';
+    }
+    var amts = t.add > 0 ? [t.add, 50, 100, 200] : [50, 100, 200];
+    var seen = {}, h = '';
+    amts.forEach(function(a, i){
+      if (!a || seen[a]) { return; }
+      seen[a] = 1;
+      h += '<button type="button" class="pill' + (i === 0 ? ' on' : '') + '" data-v="' + a + '">$' + a +
+           (i === 0 && t.add > 0 ? ' (full tint)' : '') + '</button>';
+    });
+    $('topAmts').innerHTML = h;
+  }
+
+  /* --- pass it on --- */
+  function panel(which){
+    $('passPanel').classList.toggle('on', which === 'pass');
+    $('topPanel').classList.toggle('on', which === 'top');
+    if (which) { (which === 'pass' ? $('passPanel') : $('topPanel')).scrollIntoView({block:'center', behavior:'smooth'}); }
+  }
+  $('ctaPass').addEventListener('click', function(){ panel('pass'); });
+  $('pCancel').addEventListener('click', function(){ panel(''); });
+  $('ctaTop').addEventListener('click', function(){ panel('top'); });
+  $('topCancel').addEventListener('click', function(){ panel(''); });
+
+  var PASS_SEND = 'email';
+  $('pSend').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.pill') : null;
+    if (!b) { return; }
+    PASS_SEND = b.getAttribute('data-v');
+    [].forEach.call(this.querySelectorAll('.pill'), function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    $('pEmail').style.display = PASS_SEND === 'email' ? '' : 'none';
+    $('pMob').style.display   = PASS_SEND === 'sms'   ? '' : 'none';
+  });
+
+  $('pGo').addEventListener('click', function(){
+    var hint = $('pHint'), btn = this;
+    hint.className = 'hint';
+    var body = {
+      to: $('pTo').value.trim(), from: $('pFrom').value.trim(),
+      send: PASS_SEND, message: $('pMsg').value.trim(),
+      toEmail: $('pEmail').value.trim(), toMobile: $('pMob').value.trim()
+    };
+    if (!body.to)   { hint.className = 'hint err'; hint.textContent = 'Who are you passing it to?'; return; }
+    if (!body.from) { hint.className = 'hint err'; hint.textContent = 'Pop your name in so they know who it is from.'; return; }
+    btn.disabled = true; hint.textContent = 'Sending…';
+    api('giftPassOn', body).then(function(j){
+      btn.disabled = false;
+      if (j && j.success) {
+        hint.className = 'hint';
+        hint.textContent = j.message || 'Sent.';
+        $('pGo').style.display = 'none';
+        $('pCancel').textContent = 'Done';
+      } else {
+        hint.className = 'hint err';
+        hint.textContent = (j && j.message) || 'That did not go through. Give us a call.';
+      }
+    }).catch(function(){
+      btn.disabled = false;
+      hint.className = 'hint err'; hint.textContent = 'That did not go through. Give us a call.';
+    });
+  });
+
+  /* --- top it up --- */
+  var TOP_ADD = 0;
+  $('topAmts').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.pill') : null;
+    if (!b) { return; }
+    [].forEach.call(this.querySelectorAll('.pill'), function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    TOP_ADD = parseInt(b.getAttribute('data-v'), 10) || 0;
+  });
+  $('topGo').addEventListener('click', function(){
+    var hint = $('topHint'), btn = this;
+    var on = $('topAmts').querySelector('.pill.on');
+    var add = TOP_ADD || (on ? parseInt(on.getAttribute('data-v'), 10) : 0);
+    if (!add) { hint.className = 'hint err'; hint.textContent = 'Pick how much to put on.'; return; }
+    btn.disabled = true; hint.className = 'hint'; hint.textContent = 'Taking you to payment…';
+    api('giftTopUp', { add: add, body: (S.body || guessBody()), film: FILMS[S.film] })
+      .then(function(j){
+        if (j && j.success && j.url) { window.location.href = j.url; return; }
+        btn.disabled = false;
+        hint.className = 'hint err';
+        hint.textContent = (j && j.message) || 'We could not start the payment. Give us a call.';
+      })
+      .catch(function(){
+        btn.disabled = false;
+        hint.className = 'hint err'; hint.textContent = 'We could not start the payment. Give us a call.';
+      });
+  });
+
   /* ---------- cars ---------- */
   function fillCars(){
     var q = ($('q').value || '').toLowerCase().trim(), h = '', n = 0;
@@ -2107,8 +2284,10 @@ void main(){
     var secs = document.querySelectorAll('.sec');
     if (secs[1]) { secs[1].style.display = ''; dockUp(secs[1]); }
 
+    CARD_NOW = card;
     drawLayout(); fillShades(); drawValue(); drawWho();
     $('ctaBook').setAttribute('href', bookingLink(card));
+    drawUseOptions();
     setTimeout(function(){ playReveal(S.reveal); }, 260);
 
     whenCars(function (ok){
@@ -2116,6 +2295,7 @@ void main(){
       if (c) { showCar(c); }
       else { useFallback('We could not load your exact car - here is a stand-in. Everything else is right.'); }
       $('ctaBook').setAttribute('href', bookingLink(card));
+      drawUseOptions();
     });
   }
 
@@ -2154,6 +2334,16 @@ void main(){
     recipChrome();
     notice('Opening your card…');
     loadCard(0);
+
+    /* Back from a top-up. Stripe has the money, but the balance on the card
+       only moves when the payment check next runs, so say so rather than
+       showing the old number with no explanation. */
+    if (/[?&]topped=1/.test(location.search)) {
+      setTimeout(function(){
+        notice('Payment received \u2014 thanks. The new balance lands on your card ' +
+               'within a few minutes; give it a refresh then. Nothing else to do.', true);
+      }, 1800);
+    }
 
     /* keep the booking link in step as they change shade or car */
     document.addEventListener('click', function (){
