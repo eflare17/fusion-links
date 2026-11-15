@@ -83,7 +83,12 @@
   .pill.on{background:#ff6b1a;border-color:#ff6b1a;color:#111}
   .pill.big{display:block;width:100%;text-align:center;font-size:16.5px;font-weight:800;
     padding:16px 14px;border-radius:13px;margin:0 0 7px}
-  .pill.allpick{display:block;width:100%;text-align:center;margin-top:10px;padding:13px 14px;border-radius:12px}
+  .pill.setown{display:flex;width:100%;align-items:center;justify-content:center;gap:7px;
+    margin-top:13px;padding:12px 14px;border-radius:12px;font-size:13.5px;font-weight:700;opacity:.8}
+  .pill.setown .cv{font-size:10px;transition:transform .18s}
+  .pill.setown.open{opacity:1}
+  .pill.setown.open .cv{transform:rotate(180deg)}
+  #ownbox{margin-top:9px}
   .pill.wide{flex:1;text-align:center;padding:8px 6px}
   .pill.film{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -429,17 +434,20 @@
     </div>
     <div class="infbox" id="infbox"></div>
 
-    <button type="button" class="pill big" id="sDark">Darkest legal</button>
+    <button type="button" class="pill big" id="sTheirs">Let them choose</button>
+    <div class="hint" id="theirshint">They pick the darkness when they book it in. Can&rsquo;t go wrong.</div>
+
+    <button type="button" class="pill big" id="sDark" style="margin-top:11px">Darkest legal</button>
     <div class="hint" id="darkhint">As dark as the law allows, front and back. What most people want.</div>
 
-    <div class="ctl-lab" style="margin:14px 0 7px;width:auto">Or set each one yourself</div>
-    <div class="tabs" id="side">
-      <button type="button" class="pill on" data-v="front">Front windows</button>
-      <button type="button" class="pill" data-v="rear">Rear windows</button>
+    <button type="button" class="pill setown" id="setown">Set each one yourself<span class="cv">&#9662;</span></button>
+    <div id="ownbox" style="display:none">
+      <div class="tabs" id="side">
+        <button type="button" class="pill on" data-v="front">Front windows</button>
+        <button type="button" class="pill" data-v="rear">Rear windows</button>
+      </div>
+      <div class="pills scroll" id="shades"></div>
     </div>
-    <div class="pills scroll" id="shades"></div>
-
-    <button type="button" class="pill allpick" id="sTheirs">Not sure? Let them choose</button>
 
     <div class="side-sum">
       <span>Front windows <b id="sumF">35%</b></span>
@@ -828,15 +836,22 @@
     }
     $('shades').innerHTML = h;
     var both = S.shadeF === S.shadeR ? S.shadeF : '';
-    $('sDark').className   = 'pill big'     + (both === 'Darkest legal' ? ' on' : '');
-    $('sTheirs').className = 'pill allpick' + (both === 'Their choice'  ? ' on' : '');
+    $('sDark').className   = 'pill big' + (both === 'Darkest legal' ? ' on' : '');
+    $('sTheirs').className = 'pill big' + (both === 'Their choice'  ? ' on' : '');
     $('sumF').textContent = S.shadeF || 'Clear';
     $('sumR').textContent = S.shadeR || 'Clear';
-    $('darkhint').textContent = both === 'Their choice'
+    $('theirshint').textContent = both === 'Their choice'
       ? 'We\u2019ll start them on darkest legal and they can change it when the card opens.'
-      : 'As dark as the law allows, front and back. What most people want.';
+      : 'They pick the darkness when they book it in. Can\u2019t go wrong.';
   }
-  function setBoth(v){ S.shadeF = v; S.shadeR = v; fillShades(); drawCar(); }
+  function ownFold(open){
+    $('ownbox').style.display = open ? '' : 'none';
+    $('setown').classList.toggle('open', !!open);
+  }
+  $('setown').addEventListener('click', function(){
+    ownFold($('ownbox').style.display === 'none');
+  });
+  function setBoth(v){ S.shadeF = v; S.shadeR = v; ownFold(false); fillShades(); drawCar(); }
   $('sDark').addEventListener('click', function(){ setBoth('Darkest legal'); });
   $('sTheirs').addEventListener('click', function(){ setBoth('Their choice'); });
   $('shades').addEventListener('click', function(e){
@@ -1229,7 +1244,6 @@
     };
 
     var sendLab = secs[4].querySelector('.ctl-lab');
-    var sideLab = secs[1].querySelector('.ctl-lab');
     var sideSum = secs[1].querySelector('.side-sum');
     var buyBox  = $('buy').parentNode;
     var bodyRow = $('bodyrow');
@@ -1260,9 +1274,16 @@
         } },
 
       { lean:true,
+        q:'What colour is it?',
+        s:'So the card shows their car, not a stock one.',
+        box: pack(['dots']),
+        skip: function(){ return S.val !== 'job' && !S.car && !FALLBACK; },
+        ok: function(){ return true; } },
+
+      { lean:true,
         q:'Pick the tint',
         s:'Tap the i on a film to see what it is good at.',
-        box: pack(['sFilm','infbox','sDark','darkhint', sideLab, 'side','shades','sTheirs', sideSum]),
+        box: pack(['sFilm','infbox','sTheirs','theirshint','sDark','darkhint','setown','ownbox', sideSum]),
         skip: function(){ return S.val !== 'job' && !S.car && !FALLBACK; },
         ok: function(){ return true; } },
 
