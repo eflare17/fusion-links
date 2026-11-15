@@ -1558,8 +1558,12 @@ void main(){
     })(t0);
 
     return {
-      /* the card is in now: resize to it, re-read it, let the blade go */
-      play: function (){ fit(); paintTex(); wipeAt = performance.now(); },
+      /* The card's content lands before the blade does, and it changes the
+         card's height. Re-size then, under full fog, so nothing shifts at the
+         handover. The texture is deliberately NOT rebuilt: re-reading it would
+         change the tint of the glass at the very moment the blade starts. */
+      fit: fit,
+      play: function (){ wipeAt = performance.now(); },
       /* this card opens some other way, so take the glass off gently */
       fade: function (){
         rv.style.transition = 'opacity .35s ease';
@@ -2440,6 +2444,7 @@ void main(){
 
     var secs = document.querySelectorAll('.sec');
     $('card').classList.remove('fogged');   /* real content now, fog still over it */
+    if (FOGGL) { setTimeout(function(){ if (FOGGL) { FOGGL.fit(); } }, 30); }
     if (secs[1]) { secs[1].style.display = ''; dockUp(secs[1]); }
 
     CARD_NOW = card;
