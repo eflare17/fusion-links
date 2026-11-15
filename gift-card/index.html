@@ -862,6 +862,7 @@ void main(){
   /* Both calls go to the booker script: it serves the cached car list
      (action=carList, ~1.4s instead of ~8s straight from the visualiser)
      and does the rego lookup. Add &refresh=1 to carList after adding cars. */
+  var SITE = 'https://fusiontint.com.au';
   var BOOK_API = 'https://script.google.com/macros/s/AKfycbzNmWkV64bCAjRqOc0_-AoqTD_tmRQ53PJOJIPTu5dtvETNolHN0nhCPTqX1m_p4iGw/exec';
 
   var FILMS  = { blackArmor:'Black Armor Select', vtxCeramic:'VTX Pro Ceramic' };
@@ -2046,8 +2047,10 @@ void main(){
       carSlug: (S.car ? (S.car.slug || '') : (card.carSlug || '')),
       film: card.film || '', front: S.shadeF || '', rear: S.shadeR || ''
     };
-    /* the booker's own page: /book-now is a redirect and drops the query */
-    return '/automotive-new?' + Object.keys(p).map(function(k){
+    /* The booker lives on the main site, and this page no longer does, so the
+       link has to be absolute. /book-now is a redirect that drops the query,
+       hence the page itself. */
+    return SITE + '/automotive-new?' + Object.keys(p).map(function(k){
       return encodeURIComponent(k) + '=' + encodeURIComponent(p[k]);
     }).join('&') + '#book';
   }
