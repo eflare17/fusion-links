@@ -1366,7 +1366,7 @@
       $('wizStep').textContent = 'Step ' + pos + ' of ' + live.length;
       $('wizBar').style.width = Math.round(pos / live.length * 100) + '%';
       $('card').className = $('card').className.replace(/\s*\blean\b/, '') + (st.lean ? ' lean' : '');
-      if (lab) { lab.textContent = st.lean ? 'Their car' : 'Their card'; }
+      if (lab) { lab.innerHTML = '<span>Preview</span>' + (st.lean ? 'their car' : 'what they&rsquo;ll get'); }
       $('wizBack').style.visibility = at === 0 ? 'hidden' : '';
       $('wizNext').style.display = at === STEPS.length - 1 ? 'none' : '';
       $('wizNext').textContent = at === STEPS.length - 2 ? 'Review' : 'Next';
