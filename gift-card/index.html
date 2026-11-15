@@ -1252,7 +1252,7 @@
         q:'Pick the tint',
         s:'Tap the i on a film to see what it is good at.',
         box: pack(['sFilm','infbox','sDark','darkhint', sideLab, 'side','shades','sTheirs', sideSum]),
-        skip: function(){ return !S.car && !FALLBACK; },
+        skip: function(){ return S.val !== 'job' && !S.car && !FALLBACK; },
         ok: function(){ return true; } },
 
       { q:'Pick a design',
