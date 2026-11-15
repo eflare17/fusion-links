@@ -118,7 +118,11 @@
 
   /* ---------- preview ---------- */
   .pvwrap{display:grid;gap:7px}
-  .pvlab{font-size:9.5px;font-weight:800;letter-spacing:.18em;color:#6b6b73;text-align:center}
+  .pvlab{display:flex;align-items:center;justify-content:center;gap:8px;
+    font-size:12.5px;font-weight:700;color:#8a8a94;text-align:center;margin-top:20px}
+  .pvlab span{background:#ff6b1a;color:#111;font-size:10.5px;font-weight:800;
+    letter-spacing:.12em;text-transform:uppercase;padding:4px 9px;border-radius:999px}
+  .pvlab::before,.pvlab::after{content:'';flex:1;height:1px;background:#2b2b33;max-width:56px}
 
   .card{
     --bg:#17171a; --panel:#1c1c20; --accent:#ff6b1a; --text:#ffffff;
@@ -352,7 +356,7 @@
 
   <!-- preview card -->
   <div class="pvwrap">
-    <div class="pvlab">Their card</div>
+    <div class="pvlab"><span>Preview</span>what they&rsquo;ll get</div>
     <div class="card" id="card">
       <div class="head">
         <div class="brand">
@@ -1334,7 +1338,7 @@
     wrap.appendChild(nav);
 
     page.appendChild(wrap);
-    page.insertBefore(pv, wrap);          /* the card sits above the questions */
+    page.appendChild(pv);                 /* the questions first, the preview under them */
     /* keep the build stamp at the very bottom, out of the way */
     var stamp = [].filter.call(page.children, function(el){
       return el !== pv && el !== wrap && /BUILD \d/.test(el.textContent || '');
