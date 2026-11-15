@@ -2301,6 +2301,13 @@ void main(){
     card.classList.add('fogged');
   }
 
+  /* The card lives outside the numbered sections, so a dud link used to leave
+     the placeholder card on screen. Take it away with everything else. */
+  function hideCard(){
+    var pv = document.querySelector('.pvwrap');
+    if (pv) { pv.style.display = 'none'; }
+  }
+
   function fogOff(now){
     var card = $('card');
     if (!card) { return; }
@@ -2430,14 +2437,14 @@ void main(){
           setTimeout(function(){ loadCard(attempt + 1); }, 10000);
           return;
         }
-        fogOff(true);
+        fogOff(true); hideCard();
         notice(esc(msg) + '<br>Give us a call on <b>0488 846 848</b> and we’ll sort it out.');
         $('load').textContent = '';
         var secs = document.querySelectorAll('.sec');
         if (secs[1]) { secs[1].style.display = 'none'; }
       })
       .catch(function (){
-        fogOff(true);
+        fogOff(true); hideCard();
         notice('We could not reach us just now. Try again in a minute, or call <b>0488 846 848</b>.');
       });
   }
