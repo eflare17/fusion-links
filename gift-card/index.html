@@ -294,7 +294,7 @@
   .card.nocar .val-n{font-size:46px}
 
 
-  /* ---------- using a card: top it up, or pass it on ---------- */
+  /* ---------- using a card: top it up, or gift it on ---------- */
   .btn.btn-up{display:block;width:100%;text-align:center;background:var(--accent);
     color:var(--ink);border:0;cursor:pointer;padding:12px 14px;border-radius:12px;margin-top:9px}
   .btn.btn-up b{display:block;font-size:15.5px;font-weight:800}
@@ -552,7 +552,7 @@
       <div class="cta">
         <a class="btn btn-1" id="ctaBook" href="#">Book my car in</a>
         <button type="button" class="btn btn-up" id="ctaPass" style="display:none">
-          <b>&#127873;&nbsp; Gift it to a friend</b>
+          <b>&#127873;&nbsp; Gift it to someone else</b>
           <span>Put their name on it and send it over &mdash; it is yours to give away</span>
         </button>
         <button type="button" class="btn btn-2 btn-top" id="ctaTop" style="display:none">
@@ -563,7 +563,7 @@
       </div>
 
       <div class="panel" id="passPanel">
-        <div class="panel-h">Gift it to a friend</div>
+        <div class="panel-h">Gift it to someone else</div>
         <p class="panel-p">Put their name on it and it becomes their card. Same number, same date to use it by. Here is what lands on their phone:</p>
         <div class="gpv">
           <div class="gpv-ban th-christmas-1"><span>Merry Christmas</span></div>
@@ -1687,7 +1687,7 @@ void main(){
     $('topAmts').innerHTML = h;
   }
 
-  /* --- pass it on --- */
+  /* --- gift it to someone else --- */
   function panel(which){
     $('passPanel').classList.toggle('on', which === 'pass');
     $('topPanel').classList.toggle('on', which === 'top');
@@ -1728,7 +1728,7 @@ void main(){
       send: PASS_SEND, message: $('pMsg').value.trim(),
       toEmail: $('pEmail').value.trim(), toMobile: $('pMob').value.trim()
     };
-    if (!body.to)   { hint.className = 'hint err'; hint.textContent = 'Who are you passing it to?'; return; }
+    if (!body.to)   { hint.className = 'hint err'; hint.textContent = 'Who are you gifting it to?'; return; }
     if (!body.from) { hint.className = 'hint err'; hint.textContent = 'Pop your name in so they know who it is from.'; return; }
     btn.disabled = true; hint.textContent = 'Sending…';
     api('giftPassOn', body).then(function(j){
