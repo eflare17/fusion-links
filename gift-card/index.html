@@ -748,9 +748,11 @@
       $('vk').textContent = 'Credit on this card';
       $('vjob').style.display = 'none'; $('vamt').style.display = '';
       $('vamt').textContent = '$' + S.amount;
-      $('vsub').innerHTML = 'Towards tinting on ' +
-        (S.car || FALLBACK ? 'your <b>' + esc(name) + '</b>' : '<b>their car</b>') +
-        '<br>Use it on any job &middot; top up any time';
+      $('vsub').innerHTML = (S.car || FALLBACK)
+        ? ('Towards tinting on your <b>' + esc(name) + '</b>' +
+           '<br>Use it on any job &middot; top up any time')
+        : ('Towards window tinting at Fusion Tinting' +
+           '<br>Use it on any job &middot; top up any time');
     }
     /* the buyer sees the amount; the recipient's card doesn't carry it */
     $('buy').textContent = 'Continue to payment — $' + cardAmount();
