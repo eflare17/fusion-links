@@ -2284,7 +2284,11 @@ void main(){
       $('wizNext').style.display = at === STEPS.length - 1 ? 'none' : '';
       $('wizNext').textContent = at === STEPS.length - 2 ? 'Review' : 'Next';
       $('wizErr').textContent = '';
-      try { pv.scrollIntoView({ behavior:'smooth', block:'start' }); } catch (e) {}
+      /* The preview sits under the questions on a phone, so scrolling to it
+         dropped you past the question you are meant to answer - and did it on
+         first paint too, which is why the page opened partway down. Go to the
+         question instead, and only when a step actually changes. */
+      if (dir) { try { wrap.scrollIntoView({ behavior:'smooth', block:'start' }); } catch (e) {} }
     }
     $('wizNext').addEventListener('click', function(){
       var v = STEPS[at].ok();
