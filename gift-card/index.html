@@ -277,6 +277,10 @@
     display:flex;align-items:center;justify-content:center;min-height:58px;
   }
   /* two big choices: a whole job, or an amount */
+  /* Pills default to nowrap, which is right for the shade scroller but not for
+     these full-width ones: their descriptions ran off the side of a phone and
+     gave the whole page a sideways scroll. */
+  .pill.kind,.pill.big,.pill.setown,.pill.allpick{white-space:normal}
   .pill.kind{display:block;width:100%;text-align:left;padding:15px 16px;border-radius:13px;margin-bottom:8px}
   .pill.kind b{display:block;font-size:16.5px;font-weight:800;margin-bottom:2px}
   .pill.kind span{display:block;font-size:12.5px;opacity:.72;font-weight:600}
