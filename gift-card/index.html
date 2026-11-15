@@ -1069,7 +1069,14 @@
       h += '<option value="' + esc(c.slug) + '">' + esc(lbl) + '</option>';
       n++;
     }
-    $('carsel').innerHTML = h || '<option value="">No match</option>';
+    /* A select with no placeholder shows its first entry as if it were chosen,
+       but nothing is, and tapping that entry fires no change event - so the
+       first car in the list looked dead until you picked another and came
+       back. Lead with a placeholder so what's shown matches what's set. */
+    $('carsel').innerHTML = n
+      ? ('<option value="">Pick their car\u2026</option>' + h)
+      : '<option value="">No match</option>';
+    if (S.car && S.car.slug) { $('carsel').value = S.car.slug; }
   }
   function bySlug(s){
     for (var i=0; i<CARS.length; i++){ if (CARS[i].slug === s) return CARS[i]; }
@@ -1089,6 +1096,22 @@
     if (!c) return;
     S.car = c;
     S.body = '';
+    /* keep the dropdown showing whatever is actually set, including when the
+       car came from a rego lookup rather than the list */
+    var sel = $('carsel');
+    if (sel && sel.value !== c.slug) {
+      var has = false;
+      for (var oi = 0; oi < sel.options.length; oi++) {
+        if (sel.options[oi].value === c.slug) { has = true; break; }
+      }
+      if (!has) {
+        var o = document.createElement('option');
+        o.value = c.slug;
+        o.textContent = c.label || (c.make + ' ' + c.model);
+        sel.appendChild(o);
+      }
+      sel.value = c.slug;
+    }
     $('carx').textContent = c.label || (c.make + ' ' + c.model);
     $('load').style.display = '';
     $('load').textContent = 'Loading…';
@@ -1101,7 +1124,10 @@
     });
   }
   $('q').addEventListener('input', fillCars);
-  $('carsel').addEventListener('change', function(){ showCar(bySlug(this.value)); });
+  $('carsel').addEventListener('change', function(){
+    if (!this.value) { return; }
+    showCar(bySlug(this.value));
+  });
 
   $('find').addEventListener('click', function(){
     var plate = ($('plate').value || '').replace(/[^A-Z0-9]/gi,'').toUpperCase();
