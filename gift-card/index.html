@@ -845,6 +845,7 @@
     fillShades(); drawCar();
   });
 
+  var WIZ = {};
   function fillValues(){
     var h = '';
     [50,100,200].forEach(function(a){
@@ -867,6 +868,7 @@
     S.val = b.getAttribute('data-v') === 'job' ? 'job' : 'amt';
     if (S.val === 'amt' && !S.amount) { S.amount = 100; }
     fillValues(); drawValue(); drawFilmPrices();
+    if (WIZ.repaint) { WIZ.repaint(); }
   });
 
   /* what each film costs for this car, under its name */
@@ -1350,6 +1352,7 @@
       $('carx').textContent = '';
       drawValue(); show(at + 1, 1);
     });
+    WIZ.repaint = function(){ show(at); };
     show(0);
   }
 
