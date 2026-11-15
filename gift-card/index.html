@@ -256,6 +256,23 @@
   .card.has-banner .eyebrow{
     display:flex;align-items:center;justify-content:center;min-height:58px;
   }
+  /* two big choices: a whole job, or an amount */
+  .pill.kind{display:block;width:100%;text-align:left;padding:15px 16px;border-radius:13px;margin-bottom:8px}
+  .pill.kind b{display:block;font-size:16.5px;font-weight:800;margin-bottom:2px}
+  .pill.kind span{display:block;font-size:12.5px;opacity:.72;font-weight:600}
+  /* price and the tap-for-more dot on each film */
+  .pill.film{position:relative}
+  .pill.film .px{display:block;font-size:12.5px;font-weight:800;opacity:.85;margin-top:3px}
+  .inf{position:absolute;top:7px;right:7px;width:19px;height:19px;border-radius:50%;
+    border:1px solid currentColor;opacity:.55;font-size:12px;font-weight:800;
+    line-height:17px;text-align:center;font-style:italic}
+  .infbox{display:none;background:#1f1f25;border:1px solid #33333b;border-radius:11px;
+    padding:11px 13px;font-size:13px;line-height:1.5;color:#cfcfd8;margin-top:8px}
+  .infbox.on{display:block}
+  /* a card with no car: the design carries it and the amount goes big */
+  .card.nocar .stage{display:none}
+  .card.nocar .val-n{font-size:46px}
+
   /* ---------- the buy flow: one question at a time ---------- */
   .wiz-top{display:flex;align-items:center;gap:10px;margin:0 0 14px}
   .wiz-step{font-size:10.5px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#7a7a84;white-space:nowrap}
@@ -325,6 +342,7 @@
     </div>
 
     <div class="hint" id="carhint">Pop their rego in and we'll bring up the car.</div>
+    <button type="button" class="pill allpick" id="carSkip" style="display:none">Skip &mdash; no car on the card</button>
   </div>
 
   <!-- preview card -->
@@ -399,12 +417,17 @@
       <button type="button" class="pill wide film" data-v="blackArmor">
         <img class="mark" src="data:image/png;base64,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" alt="Black Armor">
         <span class="nm">Black Armor Select</span>
+        <span class="px" id="pxblackArmor"></span>
+        <span class="inf" data-inf="blackArmor">i</span>
       </button>
       <button type="button" class="pill wide film on" data-v="vtxCeramic">
         <img class="mark sg" src="https://images.squarespace-cdn.com/content/5be8a38cd274cbe16ae864e5/1e514c90-435c-4a48-b278-9ec6d1e5b8d9/this-1.svg.png?content-type=image%2Fpng" alt="Solar Gard">
         <span class="nm">VTX Pro Ceramic</span>
+        <span class="px" id="pxvtxCeramic"></span>
+        <span class="inf" data-inf="vtxCeramic">i</span>
       </button>
     </div>
+    <div class="infbox" id="infbox"></div>
 
     <button type="button" class="pill big" id="sDark">Darkest legal</button>
     <div class="hint" id="darkhint">As dark as the law allows, front and back. What most people want.</div>
@@ -427,6 +450,11 @@
   <!-- 3. value -->
   <div class="sec">
     <div class="sec-h"><span class="sec-n">03</span><span class="sec-t">What's on it</span></div>
+    <div class="pills" id="sKind">
+      <button type="button" class="pill kind on" data-v="job"><b>A full tint</b><span>The whole job, prepaid. Nothing to pay on the day.</span></button>
+      <button type="button" class="pill kind" data-v="amt"><b>A dollar amount</b><span>Credit they put towards any job.</span></button>
+    </div>
+    <div class="ctl-lab" id="amtLab" style="margin:12px 0 7px;width:auto;display:none">How much?</div>
     <div class="pills" id="sVal"></div>
     <div class="row" id="otherrow" style="display:none;margin-top:7px">
       <input class="fld" id="other" type="number" min="20" max="2000" step="10" placeholder="Amount, e.g. 150">
@@ -546,6 +574,7 @@
            '>' + esc(list[i].label) + ' \u2014 $' + priceFor(list[i].key, S.film) + '</option>';
     }
     $('bodysel').innerHTML = h;
+    drawFilmPrices();
   }
 
   /* One call per film at load - gives us his real prices and the body list. */
@@ -569,7 +598,7 @@
   var S = {
     how:'rego', lay:'', film:'vtxCeramic', shadeF:'35%', shadeR:'15%',
     side:'front', paint:'', car:null, val:'job', amount:50, body:'', variant:1,
-    to:'', from:'', note:'', send:'email'
+    to:'', from:'', note:'', send:'email', skipCar:false
   };
   var CARS = [], FALLBACK = false;
 
@@ -706,6 +735,8 @@
 
   function drawValue(){
     var name = carName();
+    var noCar = !S.car && !FALLBACK;
+    $('card').classList.toggle('nocar', noCar);
     if (S.val === 'job'){
       $('vk').textContent = 'This card is good for';
       $('vjob').style.display = ''; $('vamt').style.display = 'none';
@@ -813,20 +844,57 @@
   });
 
   function fillValues(){
-    var p = jobPrice(), h = '';
-    h += '<button type="button" class="pill' + (S.val==='job'?' on':'') + '" data-v="job">Whole job $' + p + '</button>';
+    var h = '';
     [50,100,200].forEach(function(a){
       h += '<button type="button" class="pill' + (S.val==='amt'&&S.amount===a?' on':'') + '" data-v="' + a + '">$' + a + '</button>';
     });
     h += '<button type="button" class="pill' + (S.val==='other'?' on':'') + '" data-v="other">Other</button>';
     $('sVal').innerHTML = h;
+    var amt = S.val !== 'job';
+    $('sVal').style.display   = amt ? '' : 'none';
+    $('amtLab').style.display = amt ? '' : 'none';
+    $('otherrow').style.display = S.val === 'other' ? '' : 'none';
+    var kb = $('sKind').querySelectorAll('.pill');
+    for (var k = 0; k < kb.length; k++){
+      kb[k].className = 'pill kind' + ((kb[k].getAttribute('data-v') === 'job') === !amt ? ' on' : '');
+    }
   }
+  $('sKind').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.pill') : null;
+    if (!b) { return; }
+    S.val = b.getAttribute('data-v') === 'job' ? 'job' : 'amt';
+    if (S.val === 'amt' && !S.amount) { S.amount = 100; }
+    fillValues(); drawValue(); drawFilmPrices();
+  });
+
+  /* what each film costs for this car, under its name */
+  function drawFilmPrices(){
+    ['blackArmor','vtxCeramic'].forEach(function(f){
+      var el = $('px' + f);
+      if (!el) { return; }
+      el.textContent = (S.val === 'job' && (S.car || FALLBACK))
+        ? ('$' + priceFor(S.body || guessBody(), f)) : '';
+    });
+  }
+  var INFO = {
+    blackArmor: 'Black Armor Select \u2014 great for UV protection and privacy.',
+    vtxCeramic: 'VTX Pro Ceramic \u2014 great for heat rejection, UV protection and privacy.'
+  };
+  $('sFilm').addEventListener('click', function(e){
+    var i = e.target.closest ? e.target.closest('.inf') : null;
+    if (!i) { return; }
+    e.stopPropagation(); e.preventDefault();
+    var key = i.getAttribute('data-inf'), box = $('infbox');
+    var same = box.classList.contains('on') && box.getAttribute('data-for') === key;
+    box.textContent = INFO[key] || '';
+    box.setAttribute('data-for', key);
+    box.className = 'infbox' + (same ? '' : ' on');
+  }, true);
   $('sVal').addEventListener('click', function(e){
     var b = e.target.closest ? e.target.closest('.pill') : null;
     if (!b) return;
     var v = b.getAttribute('data-v');
-    if (v === 'job'){ S.val = 'job'; $('otherrow').style.display = 'none'; }
-    else if (v === 'other'){
+    if (v === 'other'){
       S.val = 'other';
       $('otherrow').style.display = '';
       S.amount = parseInt($('other').value, 10) || 100;
@@ -1160,38 +1228,39 @@
     var buyBox  = $('buy').parentNode;
 
     var STEPS = [
-      { id:'car', lean:true,
-        q:'Whose car is it?',
-        s:'Pop in their rego, or search the make and model.',
-        box: whole(secs[0]),
-        ok: function(){ return S.car ? true : 'Pick their car first so we can put it on the card.'; } },
-
-      { id:'paint', lean:true,
-        q:'What colour is it?',
-        s:'Close enough is fine \u2014 they can change it when they open the card.',
-        box: pack(['dots']),
-        ok: function(){ return true; } },
-
-      { id:'tint', lean:true,
-        q:'How dark do they want it?',
-        s:'Your pick for now. Theirs to change later.',
-        box: pack(['sFilm','sDark','darkhint', sideLab, 'side','shades','sTheirs', sideSum]),
-        ok: function(){ return true; } },
-
-      { id:'value',
-        q:'What is the card worth?',
+      { q:'What kind of card?',
         s:'',
         box: whole(secs[2]),
-        ok: function(){ return (S.val === 'job' || cardAmount() >= 20) ? true : 'Put in an amount of $20 or more.'; } },
+        ok: function(){
+          if (S.val === 'job') { return true; }
+          return cardAmount() >= 20 ? true : 'Pick an amount of $20 or more.';
+        } },
 
-      { id:'design',
-        q:'Pick a design',
+      { lean:true,
+        q: function(){ return S.val === 'job' ? 'Whose car is it?' : 'Want their car on the card?'; },
+        s: function(){ return S.val === 'job'
+             ? 'Pop in their rego, or search the make and model.'
+             : 'Nice touch if you know it. Skip it and the design fills the card instead.'; },
+        box: whole(secs[0]),
+        enter: function(){ $('carSkip').style.display = S.val === 'job' ? 'none' : ''; },
+        ok: function(){
+          if (S.val !== 'job') { return true; }
+          return S.car ? true : 'Pick their car first so we can put it on the card.';
+        } },
+
+      { lean:true,
+        q:'Pick the tint',
+        s:'Tap the i on a film to see what it is good at.',
+        box: pack(['sFilm','infbox','sDark','darkhint', sideLab, 'side','shades','sTheirs', sideSum]),
+        skip: function(){ return !S.car && !FALLBACK; },
+        ok: function(){ return true; } },
+
+      { q:'Pick a design',
         s:'This is what they see when the card opens.',
         box: whole(secs[3]),
         ok: function(){ return true; } },
 
-      { id:'msg',
-        q:'Who is it for?',
+      { q:'Who is it for?',
         s:'Their name and yours go on the front of the card.',
         box: pack(['to','from','note']),
         ok: function(){
@@ -1200,25 +1269,20 @@
           return true;
         } },
 
-      { id:'send',
-        q:'How should we send it?',
-        s:'',
+      { q:'How should we send it?', s:'',
         box: pack([sendLab,'sSend','rowEmail','rowMob','fromemail','sendhint']),
         ok: function(){
           var email = ($('toemail').value || '').trim();
           var mob   = ($('tomob').value || '').trim();
           var mine  = ($('fromemail').value || '').trim();
           if ((S.send === 'email' || S.send === 'both') && email.indexOf('@') < 1) { return 'We need their email address.'; }
-          if ((S.send === 'sms'   || S.send === 'both') && mob.replace(/\D/g,'').length < 9) { return 'We need their mobile number.'; }
+          if ((S.send === 'sms' || S.send === 'both') && mob.replace(/[^0-9]/g, '').length < 9) { return 'We need their mobile number.'; }
           if (mine.indexOf('@') < 1) { return 'We need your email, for the receipt and your own copy.'; }
           return true;
         } },
 
-      { id:'pay',
-        q:'That\u2019s the card',
-        s:'Have a last look at it above, then pay and we\u2019ll send it.',
-        box: buyBox,
-        ok: function(){ return true; } }
+      { q:'That\u2019s the card', s:'Have a last look at it above, then pay and we\u2019ll send it.',
+        box: buyBox, ok: function(){ return true; } }
     ];
 
     var wrap = document.createElement('div');
@@ -1249,28 +1313,41 @@
 
     var at = 0;
     var lab = document.querySelector('.pvlab');
-    function show(i){
-      at = Math.max(0, Math.min(STEPS.length - 1, i));
+    function show(i, dir){
+      var n = Math.max(0, Math.min(STEPS.length - 1, i));
+      while (STEPS[n].skip && STEPS[n].skip() && n > 0 && n < STEPS.length - 1) { n += (dir || 1); }
+      at = Math.max(0, Math.min(STEPS.length - 1, n));
       var st = STEPS[at];
       STEPS.forEach(function(x, k){ x.box.className = 'stp' + (k === at ? ' on' : ''); });
-      $('wizQ').textContent = st.q;
-      $('wizSub').textContent = st.s || '';
-      $('wizSub').style.display = st.s ? '' : 'none';
-      $('wizStep').textContent = 'Step ' + (at + 1) + ' of ' + STEPS.length;
-      $('wizBar').style.width = Math.round((at + 1) / STEPS.length * 100) + '%';
+      var qt = typeof st.q === 'function' ? st.q() : st.q;
+      var sb = typeof st.s === 'function' ? st.s() : st.s;
+      $('wizQ').textContent = qt;
+      $('wizSub').textContent = sb || '';
+      $('wizSub').style.display = sb ? '' : 'none';
+      if (st.enter) { st.enter(); }
+      var live = STEPS.filter(function(x){ return !(x.skip && x.skip()); });
+      var pos  = live.indexOf(st) + 1;
+      $('wizStep').textContent = 'Step ' + pos + ' of ' + live.length;
+      $('wizBar').style.width = Math.round(pos / live.length * 100) + '%';
       $('card').className = $('card').className.replace(/\s*\blean\b/, '') + (st.lean ? ' lean' : '');
       if (lab) { lab.textContent = st.lean ? 'Their car' : 'Their card'; }
       $('wizBack').style.visibility = at === 0 ? 'hidden' : '';
       $('wizNext').style.display = at === STEPS.length - 1 ? 'none' : '';
+      $('wizNext').textContent = at === STEPS.length - 2 ? 'Review' : 'Next';
       $('wizErr').textContent = '';
       try { pv.scrollIntoView({ behavior:'smooth', block:'start' }); } catch (e) {}
     }
     $('wizNext').addEventListener('click', function(){
       var v = STEPS[at].ok();
       if (v !== true) { $('wizErr').textContent = v; return; }
-      show(at + 1);
+      show(at + 1, 1);
     });
-    $('wizBack').addEventListener('click', function(){ show(at - 1); });
+    $('wizBack').addEventListener('click', function(){ show(at - 1, -1); });
+    $('carSkip').addEventListener('click', function(){
+      S.car = null; S.skipCar = true; S.body = '';
+      $('carx').textContent = '';
+      drawValue(); show(at + 1, 1);
+    });
     show(0);
   }
 
