@@ -742,7 +742,9 @@
       $('vjob').style.display = ''; $('vamt').style.display = 'none';
       $('vjob').textContent = 'A full tint';
       /* no price on the face of a whole-job card - it's a present */
-      $('vsub').innerHTML = 'On your <b>' + esc(name) + '</b><br>' +
+      $('vsub').innerHTML = ((S.car || FALLBACK)
+          ? ('On your <b>' + esc(name) + '</b>')
+          : 'On <b>their car</b>') + '<br>' +
         esc(FILMS[S.film]) + ' &middot; prepaid in full';
     } else {
       $('vk').textContent = 'Credit on this card';
@@ -1245,7 +1247,11 @@
         s: function(){ return S.val === 'job'
              ? 'Pop in their rego, or search the make and model.'
              : 'Nice touch if you know it. Skip it and the design fills the card instead.'; },
-        box: whole(secs[0]),
+        box: (function(){
+          var b = whole(secs[0]), br = $('bodyrow');
+          if (br) { b.appendChild(br); }
+          return b;
+        })(),
         enter: function(){ $('carSkip').style.display = S.val === 'job' ? 'none' : ''; },
         ok: function(){
           if (S.val !== 'job') { return true; }
