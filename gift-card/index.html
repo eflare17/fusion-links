@@ -383,23 +383,31 @@
   .rv-lid .bw i{position:absolute;display:block;width:78px;height:50px;top:-25px;
     border:12px solid #e9c46a;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(120,80,10,.35)}
   .rv-lid .bw i.l{right:2px;transform:rotate(18deg);transform-origin:100% 50%;
-    animation:loopL 520ms ease 200ms forwards}
+    animation:loopL 560ms cubic-bezier(.45,0,.4,1) 180ms forwards}
   .rv-lid .bw i.r{left:2px;transform:rotate(-18deg);transform-origin:0 50%;
-    animation:loopR 520ms ease 200ms forwards}
+    animation:loopR 560ms cubic-bezier(.45,0,.4,1) 180ms forwards}
   .rv-lid .bw b{position:absolute;left:-15px;top:-15px;width:30px;height:30px;border-radius:8px;
     background:linear-gradient(135deg,#f0d283,#b8862f)}
-  .rv-lid .bw u{position:absolute;top:8px;width:14px;height:64px;
+  .rv-lid .bw u{position:absolute;top:8px;width:14px;height:64px;transform-origin:50% 0;
     background:linear-gradient(90deg,#b8862f,#e9c46a);border-radius:0 0 4px 4px}
-  .rv-lid .bw u.l{left:-22px;transform:rotate(16deg)}
-  .rv-lid .bw u.r{left:8px;transform:rotate(-16deg)}
-  .rv-lid .bw b,.rv-lid .bw u{animation:fadeDrop 420ms ease 560ms forwards}
-  @keyframes loopL{to{transform:rotate(18deg) scaleX(0);opacity:0}}
-  @keyframes loopR{to{transform:rotate(-18deg) scaleX(0);opacity:0}}
+  .rv-lid .bw u.l{left:-22px;transform:rotate(16deg);
+    animation:tailL 560ms cubic-bezier(.45,0,.4,1) 180ms forwards}
+  .rv-lid .bw u.r{left:8px;transform:rotate(-16deg);
+    animation:tailR 560ms cubic-bezier(.45,0,.4,1) 180ms forwards}
+  /* undone, the bow falls away instead of fading where it sits */
+  .rv-lid .bw{animation:bowDrop 440ms cubic-bezier(.55,0,.9,.5) 740ms forwards}
+  @keyframes loopL{0%{transform:rotate(18deg) scale(1)}14%{transform:rotate(18deg) scale(1.07)}
+    100%{transform:rotate(18deg) scale(.1)}}
+  @keyframes loopR{0%{transform:rotate(-18deg) scale(1)}14%{transform:rotate(-18deg) scale(1.07)}
+    100%{transform:rotate(-18deg) scale(.1)}}
+  @keyframes tailL{to{transform:rotate(25deg) scaleY(1.65)}}
+  @keyframes tailR{to{transform:rotate(-25deg) scaleY(1.65)}}
+  @keyframes bowDrop{to{transform:translateY(360px) rotate(8deg)}}
   @keyframes fadeDrop{to{transform:translateY(40px);opacity:0}}
   @keyframes rbV{to{transform:translateY(105%)}}
   @keyframes rbH{to{transform:translateX(105%)}}
   @keyframes lidUp{0%{transform:none}35%{transform:rotateX(-14deg) translateY(-6%)}
-    100%{transform:rotateX(-70deg) translateY(-115%);opacity:.4}}
+    100%{transform:rotateX(-70deg) translateY(-150%)}}
 
   /* squeegee: frosted glass wiped clear, top to bottom */
   .rv-squeegee .frost{position:absolute;inset:0;
