@@ -2316,6 +2316,7 @@ void main(){
     $('pgLede').textContent = 'Here it is. Have a look at your car, then book it in whenever suits you.';
     /* the film was paid for, so it isn't theirs to swap - the shade is */
     if ($('sFilm')) { $('sFilm').style.display = 'none'; }
+    if ($('filmLab')) { $('filmLab').style.display = 'none'; }   /* its pills are gone too */
     if (secs[1]) {
       var t = secs[1].querySelector('.sec-t'), n = secs[1].querySelector('.sec-n');
       if (t) { t.textContent = 'Your car, your way'; }
@@ -2448,7 +2449,11 @@ void main(){
 
     var secs = document.querySelectorAll('.sec');
     $('card').classList.remove('fogged');   /* real content now, fog still over it */
-    if (secs[1]) { secs[1].style.display = ''; dockUp(secs[1]); }
+    var hasCar = !!(card.carSlug || card.car);
+    if (secs[1]) {
+      if (hasCar) { secs[1].style.display = ''; dockUp(secs[1]); }
+      else { secs[1].style.display = 'none'; }
+    }
 
     CARD_NOW = card;
     drawLayout(); fillShades(); drawValue(); drawWho();
@@ -2472,6 +2477,8 @@ void main(){
     }
 
     whenCars(function (ok){
+      /* a plain credit card has no car, so there is nothing to stand in for */
+      if (!hasCar) { return; }
       var c = ok && card.carSlug ? bySlug(card.carSlug) : null;
       if (c) { showCar(c); }
       else { useFallback('We could not load your exact car - here is a stand-in. Everything else is right.'); }
