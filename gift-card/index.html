@@ -2252,7 +2252,9 @@ void main(){
     document.title = 'Your Fusion Tinting gift card';
     var secs = document.querySelectorAll('.sec');
     /* 0 their car, 1 how it looks, 2 what's on it, 3 design, 4 who */
-    [0, 2, 3, 4].forEach(function(i){ if (secs[i]) { secs[i].style.display = 'none'; } });
+    /* 1 as well: the card starts out holding wizard placeholders (“their car”,
+       “For them / From you”), so keep it out of sight until showCard fills it. */
+    [0, 1, 2, 3, 4].forEach(function(i){ if (secs[i]) { secs[i].style.display = 'none'; } });
     if ($('buy') && $('buy').parentNode) { $('buy').parentNode.style.display = 'none'; }
     var lab = document.querySelector('.pvlab');
     if (lab) { lab.style.display = 'none'; }   /* the heading already says it */
@@ -2394,7 +2396,8 @@ void main(){
 
   if (GIFT.code && GIFT.sig) {
     recipChrome();
-    notice('Opening your card…');
+    /* No “opening…” banner: the card is hidden until it lands, and the
+       reveal animation is the thing they should see first. */
     loadCard(0);
 
     /* Back from a top-up. Stripe has the money, but the balance on the card
@@ -2404,7 +2407,7 @@ void main(){
       setTimeout(function(){
         notice('Payment received \u2014 thanks. The new balance lands on your card ' +
                'within a few minutes; give it a refresh then. Nothing else to do.', true);
-      }, 1800);
+      }, 7000);
     }
 
     /* keep the booking link in step as they change shade or car */
